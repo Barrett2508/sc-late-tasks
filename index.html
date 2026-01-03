@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Late Shift Checklist</title>
+  <style>
+    :root{
+      --bg:#0b0f14;
+      --panel: rgba(255,255,255,.06);
+      --panel2: rgba(255,255,255,.09);
+      --stroke: rgba(255,255,255,.12);
+      --text:#e8eef7;
+      --muted:#9fb2c7;
+      --blue:#00b7ff;
+      --blue2:#2ee7ff;
+      --shadow: 0 20px 50px rgba(0,0,0,.45);
+      --radius: 18px;
+    }
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(900px 500px at 15% 10%, rgba(0,183,255,.20), transparent 55%),
+        radial-gradient(700px 450px at 85% 20%, rgba(46,231,255,.14), transparent 55%),
+        radial-gradient(800px 550px at 50% 85%, rgba(0,183,255,.10), transparent 60%),
+        linear-gradient(180deg, #0a0d12 0%, #070a0f 100%);
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:24px;
+    }
+    .wrap{ width:min(980px, 100%); display:grid; gap:16px; }
+    header{
+      display:flex; align-items:flex-end; justify-content:space-between; gap:12px;
+      padding:6px 4px;
+    }
+    .title{ display:flex; flex-direction:column; gap:6px; }
+    h1{ margin:0; font-size:28px; letter-spacing:.2px; line-height:1.1; }
+    .subtitle{ margin:0; color:var(--muted); font-size:14px; }
+    .pill{
+      font-size:12px; padding:8px 10px; border:1px solid var(--stroke);
+      background: rgba(255,255,255,.04); border-radius:999px; color:var(--muted);
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      box-shadow: 0 10px 25px rgba(0,0,0,.2);
+      white-space:nowrap;
+    }
+    .panel{
+      background: var(--panel);
+      border:1px solid var(--stroke);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      overflow:hidden;
+    }
+    .panel-inner{ padding:18px; }
+    .controls{
+      display:flex; flex-wrap:wrap; gap:10px; justify-content:space-between; align-items:center;
+      border-top:1px solid var(--stroke);
+      padding:14px 18px;
+      background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.015));
+    }
+    .btns{ display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; }
+    button{
+      border:1px solid var(--stroke);
+      background: rgba(255,255,255,.05);
+      color:var(--text);
+      padding:10px 12px;
+      border-radius:14px;
+      cursor:pointer;
+      font-weight:700;
+      transition: transform .08s ease, border-color .15s ease, background .15s ease;
+    }
+    button:hover{ border-color: rgba(0,183,255,.45); background: rgba(0,183,255,.10); }
+    button:active{ transform: scale(.98); }
+    .danger:hover{ border-color: rgba(255,80,80,.5); background: rgba(255,80,80,.10); }
+
+    .progress{
+      color:var(--muted);
+      font-size:13px;
+      display:flex;
+      gap:10px;
+      align-items:center;
+      user-select:none;
+    }
+    .bar{
+      width:170px; height:10px; border-radius:999px;
+      background: rgba(255,255,255,.06);
+      border:1px solid var(--stroke);
+      overflow:hidden;
+    }
+    .bar > span{
+      display:block; height:100%; width:0%;
+      background: linear-gradient(90deg, var(--blue), var(--blue2));
+      border-radius:999px;
+      transition: width .2s ease;
+    }
+
+    .task-list{ display:grid; gap:10px; }
+
+    .section{
+      margin-top:10px;
+      padding:12px 14px;
+      border-radius:16px;
+      border:1px solid rgba(0,183,255,.22);
+      background: rgba(0,183,255,.06);
+      color: var(--text);
+      font-weight:800;
+      letter-spacing:.3px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+    }
+    .section small{
+      color: var(--muted);
+      font-weight:600;
+      letter-spacing:0;
+    }
+
+    .task{
+      display:flex;
+      gap:12px;
+      align-items:flex-start;
+      padding:14px;
+      border:1px solid var(--stroke);
+      border-radius:16px;
+      background: rgba(255,255,255,.04);
+      transition: border-color .15s ease, background .15s ease;
+    }
+    .task:hover{
+      border-color: rgba(0,183,255,.35);
+      background: rgba(255,255,255,.055);
+    }
+    .task input[type="checkbox"]{
+      margin-top:2px;
+      width:18px; height:18px;
+      accent-color: var(--blue);
+      cursor:pointer;
+      flex:0 0 auto;
+    }
+    .task .text{ display:flex; flex-direction:column; gap:4px; min-width:0; }
+    .task .name{ font-weight:800; font-size:14px; letter-spacing:.2px; }
+    .task .desc{ margin:0; color:var(--muted); font-size:13px; line-height:1.35; white-space:pre-wrap; }
+
+    .task.done{ opacity:.78; border-color: rgba(0,183,255,.25); }
+    .task.done .name{
+      text-decoration: line-through;
+      text-decoration-thickness: 2px;
+      text-decoration-color: rgba(0,183,255,.65);
+    }
+
+    .footer-note{
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 10px;
+      padding: 10px 12px;
+      border: 1px dashed rgba(255,255,255,.16);
+      border-radius: 14px;
+      background: rgba(255,255,255,.03);
+    }
+
+    @media (max-width:520px){
+      .bar{ width:120px; }
+      h1{ font-size:24px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="title">
+        <h1>Late Shift</h1>
+        <p class="subtitle">Tick tasks off — saves automatically. Clear it when you’re setting up for the next day.</p>
+      </div>
+      <div class="pill" id="todayPill">Today</div>
+    </header>
+
+    <section class="panel">
+      <div class="panel-inner">
+        <div class="task-list" id="taskList"></div>
+
+        <div class="footer-note">
+          <strong>REMEMBER:</strong> If you’re not sure… ask. If you make a mistake… admit it.
+        </div>
+      </div>
+
+      <div class="controls">
+        <div class="progress">
+          <span id="progressText">0/0 done</span>
+          <div class="bar" aria-hidden="true"><span id="progressBar"></span></div>
+        </div>
+
+        <div class="btns">
+          <button id="markAllBtn" type="button">Mark all</button>
+          <button id="clearBtn" type="button" class="danger">Clear for next day</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    /**
+     * Tasks + section headers
+     * - header items are NOT checkable
+     * - task items ARE checkable and saved to localStorage
+     */
+    const ITEMS = [
+      { type: "header", title: "Start of shift", hint: "Traffic / AVL / adjustments" },
+
+      { type: "task", id: "start-traffic-issues", name: "Deal with any traffic issues", desc: "" },
+      { type: "task", id: "start-avl-late-running", name: "Use AVL to check late running", desc: "" },
+      { type: "task", id: "start-driver-legality", name: "Check driver legality if running late", desc: "" },
+      { type: "task", id: "start-adjust-break", name: "Adjust if need to come off for break", desc: "" },
+      { type: "task", id: "start-adjust-mix-routes", name: "Be mindful when adjusting (mix routes)", desc: "Don’t have too many same routes in a row.\nThink where pax are and adjust at other end if needed." },
+      { type: "task", id: "start-shunt-cars", name: "Bring in 2 shunt cars when not needed", desc: "Remember the defect cards." },
+
+      { type: "header", title: "Next Day Set Up", hint: "Printing / spreadsheets / key list" },
+
+      { type: "task", id: "nextday-shunt-defect-cards", name: "Shunt defect cards", desc: "4 cards / 2 on Sunday." },
+
+      { type: "task", id: "nextday-traffic-output", name: "Print: Traffic Output Sheet", desc: "Reports." },
+      { type: "task", id: "nextday-da", name: "Print: D&A", desc: "Other email." },
+      { type: "task", id: "nextday-daily-check", name: "Print: Daily check sheet", desc: "Tray." },
+      { type: "task", id: "nextday-random-check", name: "Print: Random Check Sheet", desc: "Tray." },
+      { type: "task", id: "nextday-staff-bus-sheet", name: "Print: Staff Bus Sheet", desc: "" },
+
+      { type: "task", id: "nextday-print-defect-cards", name: "Print defect cards", desc: "Mon–Fri (with Schools): 65\nMon–Fri (no schools): 65\nSat (no schools): 50\nSun: 25" },
+
+      { type: "task", id: "nextday-print-rtw", name: "Print any outstanding RTW", desc: "" },
+      { type: "task", id: "nextday-new-runout-spreadsheet", name: "Create new run out spreadsheet", desc: "OneDrive." },
+      { type: "task", id: "nextday-fill-key-list", name: "Fill in Key list", desc: "Remember to change to next day on activity search in Grampian." },
+
+      { type: "header", title: "Miscellaneous", hint: "CCTV / ODO / reports / scans" },
+
+      { type: "task", id: "misc-cctv-intray", name: "Check CCTV in-tray, OPM60, print missed", desc: "" },
+      { type: "task", id: "misc-cctv-save", name: "Save CCTV to external hard drive", desc: "" },
+
+      { type: "task", id: "misc-odo-readings", name: "Record ODO readings", desc: "Enter figures onto spreadsheet + running board details for that bus.\nSunday only: choose 3 buses / take ODO readings and set up following week." },
+
+      { type: "task", id: "misc-print-extra-work", name: "Print report: Extra Work", desc: "Change to today." },
+      { type: "task", id: "misc-print-spares", name: "Print report: Spares Report", desc: "Change to today / change to spares / utilisation report." },
+      { type: "task", id: "misc-print-variation", name: "Print report: Variation Report", desc: "Change to today–today." },
+      { type: "task", id: "misc-scan-forward-reports", name: "Scan reports + forward email to Duty Managers", desc: "Include RTA from morning.\nChange settings to 2-sided." },
+
+      { type: "task", id: "misc-yard-plan-route", name: "Yard Plan route", desc: "Always stick to the same route to ensure none are missed." },
+      { type: "task", id: "misc-yard-plan-print", name: "Print 2 yard plans", desc: "1 for desk, 1 for banksman.\nIncrease one to 141% and put on wall." },
+      { type: "task", id: "misc-yard-plan-forward-dave", name: "Forward yard plan to Dave Jones", desc: "" },
+      { type: "task", id: "misc-handover-email", name: "Send handover email to morning desk man", desc: "" },
+
+      { type: "header", title: "Other", hint: "Sunday-only + VOR + mileage + coverage" },
+
+      { type: "task", id: "other-absence-report-sun", name: "Print absence report + check against Attendance cards", desc: "Sunday only." },
+      { type: "task", id: "other-lost-property-sun", name: "Remove lost property over 2 weeks old", desc: "Sunday only." },
+
+      { type: "task", id: "other-gained-mileage-stena", name: "Record gained mileage for Stena", desc: "" },
+      { type: "task", id: "other-drop-mileage-avl", name: "If dropping mileage, do on AVL straight away", desc: "Ensure EPM is updated before you leave." },
+
+      { type: "task", id: "other-returned-defect-cards", name: "Mark off returned defect cards", desc: "Check podium / cleaners / bus if any missing." },
+      { type: "task", id: "other-missing-cards-email", name: "Report missing cards on email + mark as VOR on log", desc: "" },
+
+      { type: "task", id: "other-vor-log-update", name: "Update VOR log", desc: "Record card if Eng have not looked at card then:\n• Pink – VOR/Card\n• Blue – Schools\n• Orange – Stena\n• Yellow – Torque/other" },
+
+      { type: "task", id: "other-yard-plan-colours", name: "Put colours onto printed yard plan", desc: "" },
+      { type: "task", id: "other-runout-spreadsheet-vor", name: "Add VOR / Schools etc onto run out spreadsheet/locations", desc: "" },
+
+      { type: "task", id: "other-cover-week-work", name: "Work on covering work for the week ASAP", desc: "Remember you have limited time on lates." },
+    ];
+
+    const STORAGE_KEY = "lateShiftChecklistState.v1";
+
+    const taskListEl = document.getElementById("taskList");
+    const progressTextEl = document.getElementById("progressText");
+    const progressBarEl = document.getElementById("progressBar");
+    const clearBtn = document.getElementById("clearBtn");
+    const markAllBtn = document.getElementById("markAllBtn");
+    const todayPill = document.getElementById("todayPill");
+
+    function setTodayLabel() {
+      const d = new Date();
+      todayPill.textContent = d.toLocaleDateString(undefined, {
+        weekday: "short", year: "numeric", month: "short", day: "numeric"
+      });
+    }
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : {};
+      } catch {
+        return {};
+      }
+    }
+
+    function saveState(state) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function taskItemsOnly() {
+      return ITEMS.filter(i => i.type === "task");
+    }
+
+    function render() {
+      const state = loadState();
+      taskListEl.innerHTML = "";
+
+      ITEMS.forEach(item => {
+        if (item.type === "header") {
+          const h = document.createElement("div");
+          h.className = "section";
+          h.innerHTML = `
+            <span>${item.title}</span>
+            <small>${item.hint || ""}</small>
+          `;
+          taskListEl.appendChild(h);
+          return;
+        }
+
+        const isDone = !!state[item.id];
+
+        const row = document.createElement("label");
+        row.className = `task ${isDone ? "done" : ""}`;
+
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = isDone;
+        cb.addEventListener("change", () => {
+          const next = loadState();
+          next[item.id] = cb.checked;
+          saveState(next);
+          row.classList.toggle("done", cb.checked);
+          updateProgress();
+        });
+
+        const text = document.createElement("div");
+        text.className = "text";
+
+        const name = document.createElement("div");
+        name.className = "name";
+        name.textContent = item.name;
+
+        const desc = document.createElement("p");
+        desc.className = "desc";
+        desc.textContent = item.desc || "";
+
+        text.appendChild(name);
+        if (item.desc) text.appendChild(desc);
+
+        row.appendChild(cb);
+        row.appendChild(text);
+
+        taskListEl.appendChild(row);
+      });
+
+      updateProgress();
+    }
+
+    function updateProgress() {
+      const state = loadState();
+      const tasks = taskItemsOnly();
+      const total = tasks.length;
+      const done = tasks.reduce((acc, t) => acc + (state[t.id] ? 1 : 0), 0);
+      const pct = total ? Math.round((done / total) * 100) : 0;
+
+      progressTextEl.textContent = `${done}/${total} done`;
+      progressBarEl.style.width = `${pct}%`;
+
+      markAllBtn.textContent = (done === total && total > 0) ? "Unmark all" : "Mark all";
+    }
+
+    clearBtn.addEventListener("click", () => {
+      localStorage.removeItem(STORAGE_KEY);
+      render();
+    });
+
+    markAllBtn.addEventListener("click", () => {
+      const state = loadState();
+      const tasks = taskItemsOnly();
+      const total = tasks.length;
+      const done = tasks.reduce((acc, t) => acc + (state[t.id] ? 1 : 0), 0);
+      const mark = !(done === total && total > 0);
+
+      const next = {};
+      tasks.forEach(t => next[t.id] = mark);
+      saveState(next);
+      render();
+    });
+
+    // Boot
+    setTodayLabel();
+    render();
+  </script>
+</body>
+</html>
