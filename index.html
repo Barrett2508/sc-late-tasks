@@ -34,20 +34,49 @@
       padding:24px;
     }
     .wrap{ width:min(980px, 100%); display:grid; gap:16px; }
+
     header{
-      display:flex; align-items:flex-end; justify-content:space-between; gap:12px;
+      display:flex;
+      align-items:flex-end;
+      justify-content:space-between;
+      gap:12px;
       padding:6px 4px;
     }
     .title{ display:flex; flex-direction:column; gap:6px; }
     h1{ margin:0; font-size:28px; letter-spacing:.2px; line-height:1.1; }
     .subtitle{ margin:0; color:var(--muted); font-size:14px; }
+
+    .meta{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+
     .pill{
-      font-size:12px; padding:8px 10px; border:1px solid var(--stroke);
-      background: rgba(255,255,255,.04); border-radius:999px; color:var(--muted);
-      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      font-size:12px;
+      padding:8px 10px;
+      border:1px solid var(--stroke);
+      background: rgba(255,255,255,.04);
+      border-radius:999px;
+      color:var(--muted);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
       box-shadow: 0 10px 25px rgba(0,0,0,.2);
       white-space:nowrap;
+      display:inline-flex;
+      gap:8px;
+      align-items:center;
     }
+
+    .pill .dot{
+      width:8px; height:8px; border-radius:999px;
+      background: linear-gradient(90deg, var(--blue), var(--blue2));
+      box-shadow: 0 0 0 3px rgba(0,183,255,.12);
+      flex:0 0 auto;
+    }
+
     .panel{
       background: var(--panel);
       border:1px solid var(--stroke);
@@ -58,6 +87,7 @@
       overflow:hidden;
     }
     .panel-inner{ padding:18px; }
+
     .controls{
       display:flex; flex-wrap:wrap; gap:10px; justify-content:space-between; align-items:center;
       border-top:1px solid var(--stroke);
@@ -176,7 +206,12 @@
         <h1>Late Shift</h1>
         <p class="subtitle">Tick tasks off — saves automatically. Clear it when you’re setting up for the next day.</p>
       </div>
-      <div class="pill" id="todayPill">Today</div>
+
+      <div class="meta">
+        <div class="pill" id="todayPill"><span class="dot"></span><span>Today</span></div>
+        <div class="pill" id="timePill"><span class="dot"></span><span>--:--:--</span></div>
+        <div class="pill" id="weatherPill"><span class="dot"></span><span>Weather…</span></div>
+      </div>
     </header>
 
     <section class="panel">
@@ -203,14 +238,8 @@
   </div>
 
   <script>
-    /**
-     * Tasks + section headers
-     * - header items are NOT checkable
-     * - task items ARE checkable and saved to localStorage
-     */
     const ITEMS = [
       { type: "header", title: "Start of shift", hint: "Traffic / AVL / adjustments" },
-
       { type: "task", id: "start-traffic-issues", name: "Deal with any traffic issues", desc: "" },
       { type: "task", id: "start-avl-late-running", name: "Use AVL to check late running", desc: "" },
       { type: "task", id: "start-driver-legality", name: "Check driver legality if running late", desc: "" },
@@ -219,54 +248,40 @@
       { type: "task", id: "start-shunt-cars", name: "Bring in 2 shunt cars when not needed", desc: "Remember the defect cards." },
 
       { type: "header", title: "Next Day Set Up", hint: "Printing / spreadsheets / key list" },
-
       { type: "task", id: "nextday-shunt-defect-cards", name: "Shunt defect cards", desc: "4 cards / 2 on Sunday." },
-
       { type: "task", id: "nextday-traffic-output", name: "Print: Traffic Output Sheet", desc: "Reports." },
       { type: "task", id: "nextday-da", name: "Print: D&A", desc: "Other email." },
       { type: "task", id: "nextday-daily-check", name: "Print: Daily check sheet", desc: "Tray." },
       { type: "task", id: "nextday-random-check", name: "Print: Random Check Sheet", desc: "Tray." },
       { type: "task", id: "nextday-staff-bus-sheet", name: "Print: Staff Bus Sheet", desc: "" },
-
       { type: "task", id: "nextday-print-defect-cards", name: "Print defect cards", desc: "Mon–Fri (with Schools): 65\nMon–Fri (no schools): 65\nSat (no schools): 50\nSun: 25" },
-
       { type: "task", id: "nextday-print-rtw", name: "Print any outstanding RTW", desc: "" },
       { type: "task", id: "nextday-new-runout-spreadsheet", name: "Create new run out spreadsheet", desc: "OneDrive." },
       { type: "task", id: "nextday-fill-key-list", name: "Fill in Key list", desc: "Remember to change to next day on activity search in Grampian." },
 
       { type: "header", title: "Miscellaneous", hint: "CCTV / ODO / reports / scans" },
-
       { type: "task", id: "misc-cctv-intray", name: "Check CCTV in-tray, OPM60, print missed", desc: "" },
       { type: "task", id: "misc-cctv-save", name: "Save CCTV to external hard drive", desc: "" },
-
       { type: "task", id: "misc-odo-readings", name: "Record ODO readings", desc: "Enter figures onto spreadsheet + running board details for that bus.\nSunday only: choose 3 buses / take ODO readings and set up following week." },
-
       { type: "task", id: "misc-print-extra-work", name: "Print report: Extra Work", desc: "Change to today." },
       { type: "task", id: "misc-print-spares", name: "Print report: Spares Report", desc: "Change to today / change to spares / utilisation report." },
       { type: "task", id: "misc-print-variation", name: "Print report: Variation Report", desc: "Change to today–today." },
       { type: "task", id: "misc-scan-forward-reports", name: "Scan reports + forward email to Duty Managers", desc: "Include RTA from morning.\nChange settings to 2-sided." },
-
       { type: "task", id: "misc-yard-plan-route", name: "Yard Plan route", desc: "Always stick to the same route to ensure none are missed." },
       { type: "task", id: "misc-yard-plan-print", name: "Print 2 yard plans", desc: "1 for desk, 1 for banksman.\nIncrease one to 141% and put on wall." },
       { type: "task", id: "misc-yard-plan-forward-dave", name: "Forward yard plan to Dave Jones", desc: "" },
       { type: "task", id: "misc-handover-email", name: "Send handover email to morning desk man", desc: "" },
 
       { type: "header", title: "Other", hint: "Sunday-only + VOR + mileage + coverage" },
-
       { type: "task", id: "other-absence-report-sun", name: "Print absence report + check against Attendance cards", desc: "Sunday only." },
       { type: "task", id: "other-lost-property-sun", name: "Remove lost property over 2 weeks old", desc: "Sunday only." },
-
       { type: "task", id: "other-gained-mileage-stena", name: "Record gained mileage for Stena", desc: "" },
       { type: "task", id: "other-drop-mileage-avl", name: "If dropping mileage, do on AVL straight away", desc: "Ensure EPM is updated before you leave." },
-
       { type: "task", id: "other-returned-defect-cards", name: "Mark off returned defect cards", desc: "Check podium / cleaners / bus if any missing." },
       { type: "task", id: "other-missing-cards-email", name: "Report missing cards on email + mark as VOR on log", desc: "" },
-
       { type: "task", id: "other-vor-log-update", name: "Update VOR log", desc: "Record card if Eng have not looked at card then:\n• Pink – VOR/Card\n• Blue – Schools\n• Orange – Stena\n• Yellow – Torque/other" },
-
       { type: "task", id: "other-yard-plan-colours", name: "Put colours onto printed yard plan", desc: "" },
       { type: "task", id: "other-runout-spreadsheet-vor", name: "Add VOR / Schools etc onto run out spreadsheet/locations", desc: "" },
-
       { type: "task", id: "other-cover-week-work", name: "Work on covering work for the week ASAP", desc: "Remember you have limited time on lates." },
     ];
 
@@ -277,12 +292,115 @@
     const progressBarEl = document.getElementById("progressBar");
     const clearBtn = document.getElementById("clearBtn");
     const markAllBtn = document.getElementById("markAllBtn");
+
     const todayPill = document.getElementById("todayPill");
+    const timePill = document.getElementById("timePill");
+    const weatherPill = document.getElementById("weatherPill");
 
     function setTodayLabel() {
       const d = new Date();
-      todayPill.textContent = d.toLocaleDateString(undefined, {
+      const formatted = d.toLocaleDateString(undefined, {
         weekday: "short", year: "numeric", month: "short", day: "numeric"
+      });
+      todayPill.querySelector("span:last-child").textContent = formatted;
+    }
+
+    // Live time pill (updates every second)
+    function startClock() {
+      const tick = () => {
+        const now = new Date();
+        const t = now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+        timePill.querySelector("span:last-child").textContent = t;
+      };
+      tick();
+      setInterval(tick, 1000);
+    }
+
+    // Weather via device location + Open-Meteo
+    function weatherCodeToText(code) {
+      const map = {
+        0: "Clear",
+        1: "Mainly clear",
+        2: "Partly cloudy",
+        3: "Overcast",
+        45: "Fog",
+        48: "Rime fog",
+        51: "Light drizzle",
+        53: "Drizzle",
+        55: "Heavy drizzle",
+        56: "Freezing drizzle",
+        57: "Heavy freezing drizzle",
+        61: "Light rain",
+        63: "Rain",
+        65: "Heavy rain",
+        66: "Freezing rain",
+        67: "Heavy freezing rain",
+        71: "Light snow",
+        73: "Snow",
+        75: "Heavy snow",
+        77: "Snow grains",
+        80: "Rain showers",
+        81: "Heavy showers",
+        82: "Violent showers",
+        85: "Snow showers",
+        86: "Heavy snow showers",
+        95: "Thunderstorm",
+        96: "Thunderstorm + hail",
+        99: "Thunderstorm + heavy hail",
+      };
+      return map[code] ?? `Weather ${code}`;
+    }
+
+    async function fetchWeather(lat, lon) {
+      const url =
+        `https://api.open-meteo.com/v1/forecast` +
+        `?latitude=${encodeURIComponent(lat)}` +
+        `&longitude=${encodeURIComponent(lon)}` +
+        `&current=temperature_2m,weather_code,wind_speed_10m` +
+        `&temperature_unit=celsius&wind_speed_unit=mph`;
+
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Weather fetch failed");
+      return res.json();
+    }
+
+    function setWeatherText(text) {
+      weatherPill.querySelector("span:last-child").textContent = text;
+    }
+
+    async function initWeather() {
+      setWeatherText("Weather…");
+
+      if (!("geolocation" in navigator)) {
+        setWeatherText("Weather unavailable");
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(async (pos) => {
+        try {
+          const { latitude, longitude } = pos.coords;
+          const data = await fetchWeather(latitude, longitude);
+
+          const c = data?.current;
+          if (!c) {
+            setWeatherText("Weather unavailable");
+            return;
+          }
+
+          const temp = Math.round(c.temperature_2m);
+          const wind = Math.round(c.wind_speed_10m);
+          const desc = weatherCodeToText(c.weather_code);
+
+          setWeatherText(`${temp}°C • ${desc} • Wind ${wind}mph`);
+        } catch (e) {
+          setWeatherText("Weather unavailable");
+        }
+      }, () => {
+        setWeatherText("Weather unavailable");
+      }, {
+        enableHighAccuracy: false,
+        timeout: 8000,
+        maximumAge: 10 * 60 * 1000
       });
     }
 
@@ -391,6 +509,8 @@
 
     // Boot
     setTodayLabel();
+    startClock();
+    initWeather(); // asks for location permission once
     render();
   </script>
 </body>
