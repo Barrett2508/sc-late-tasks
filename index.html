@@ -8,7 +8,6 @@
     :root{
       --bg:#0b0f14;
       --panel: rgba(255,255,255,.06);
-      --panel2: rgba(255,255,255,.09);
       --stroke: rgba(255,255,255,.12);
       --text:#e8eef7;
       --muted:#9fb2c7;
@@ -34,12 +33,8 @@
       padding:24px;
     }
     .wrap{ width:min(980px, 100%); display:grid; gap:16px; }
-
     header{
-      display:flex;
-      align-items:flex-end;
-      justify-content:space-between;
-      gap:12px;
+      display:flex; align-items:flex-end; justify-content:space-between; gap:12px;
       padding:6px 4px;
     }
     .title{ display:flex; flex-direction:column; gap:6px; }
@@ -53,7 +48,6 @@
       flex-wrap:wrap;
       justify-content:flex-end;
     }
-
     .pill{
       font-size:12px;
       padding:8px 10px;
@@ -69,7 +63,6 @@
       gap:8px;
       align-items:center;
     }
-
     .pill .dot{
       width:8px; height:8px; border-radius:999px;
       background: linear-gradient(90deg, var(--blue), var(--blue2));
@@ -78,7 +71,7 @@
     }
 
     .panel{
-      background: var(--panel);
+      background: rgba(255,255,255,.06);
       border:1px solid var(--stroke);
       border-radius: var(--radius);
       box-shadow: var(--shadow);
@@ -145,11 +138,7 @@
       align-items:center;
       justify-content:space-between;
     }
-    .section small{
-      color: var(--muted);
-      font-weight:600;
-      letter-spacing:0;
-    }
+    .section small{ color: var(--muted); font-weight:600; letter-spacing:0; }
 
     .task{
       display:flex;
@@ -193,6 +182,68 @@
       background: rgba(255,255,255,.03);
     }
 
+    /* Forms */
+    .form-grid{
+      display:grid;
+      gap:12px;
+      margin-top:10px;
+    }
+    .card{
+      border:1px solid var(--stroke);
+      background: rgba(255,255,255,.04);
+      border-radius:16px;
+      padding:14px;
+    }
+    .card h2{
+      margin:0 0 10px 0;
+      font-size:14px;
+      letter-spacing:.2px;
+    }
+    .hint{
+      margin: -6px 0 10px 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .row{
+      display:grid;
+      gap:10px;
+    }
+    .row.two{
+      grid-template-columns: 1fr 1fr;
+    }
+    .row.three{
+      grid-template-columns: 1.2fr .8fr auto;
+      align-items:center;
+    }
+    input, textarea{
+      width:100%;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(10,12,16,.35);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 10px 12px;
+      outline: none;
+      font-size: 13px;
+    }
+    input:focus, textarea:focus{
+      border-color: rgba(0,183,255,.55);
+      box-shadow: 0 0 0 3px rgba(0,183,255,.10);
+    }
+    textarea{
+      min-height: 140px;
+      resize: vertical;
+      line-height: 1.4;
+    }
+    .mini{
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 8px;
+    }
+
+    @media (max-width:720px){
+      .row.two{ grid-template-columns: 1fr; }
+      .row.three{ grid-template-columns: 1fr 1fr; }
+    }
     @media (max-width:520px){
       .bar{ width:120px; }
       h1{ font-size:24px; }
@@ -210,13 +261,38 @@
       <div class="meta">
         <div class="pill" id="todayPill"><span class="dot"></span><span>Today</span></div>
         <div class="pill" id="timePill"><span class="dot"></span><span>--:--:--</span></div>
-        <div class="pill" id="weatherPill"><span class="dot"></span><span>Weather…</span></div>
+        <div class="pill" id="weatherPill"><span class="dot"></span><span>Birkenhead weather…</span></div>
       </div>
     </header>
 
     <section class="panel">
       <div class="panel-inner">
         <div class="task-list" id="taskList"></div>
+
+        <!-- EXTRA INPUT SECTIONS -->
+        <div class="form-grid">
+          <div class="card">
+            <h2>Stena Buses</h2>
+            <div class="hint">Up to 2 fleet numbers (saved automatically)</div>
+            <div class="row two">
+              <input id="stenaFleet1" placeholder="Fleet number 1 (e.g., 12345)" />
+              <input id="stenaFleet2" placeholder="Fleet number 2 (e.g., 67890)" />
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>Staff Bus</h2>
+            <div class="hint">Up to 6 entries (Name + Time)</div>
+            <div class="row" id="staffBusRows"></div>
+            <div class="mini">Tip: times accept anything (e.g., 18:10 / 6.10pm / 1810).</div>
+          </div>
+
+          <div class="card">
+            <h2>Notes</h2>
+            <div class="hint">Keep track of what happened today (saved automatically)</div>
+            <textarea id="notes" placeholder="Write notes here..."></textarea>
+          </div>
+        </div>
 
         <div class="footer-note">
           <strong>REMEMBER:</strong> If you’re not sure… ask. If you make a mistake… admit it.
@@ -238,6 +314,9 @@
   </div>
 
   <script>
+    // ----------------------------
+    // CHECKLIST ITEMS
+    // ----------------------------
     const ITEMS = [
       { type: "header", title: "Start of shift", hint: "Traffic / AVL / adjustments" },
       { type: "task", id: "start-traffic-issues", name: "Deal with any traffic issues", desc: "" },
@@ -285,8 +364,15 @@
       { type: "task", id: "other-cover-week-work", name: "Work on covering work for the week ASAP", desc: "Remember you have limited time on lates." },
     ];
 
-    const STORAGE_KEY = "lateShiftChecklistState.v1";
+    // ----------------------------
+    // STORAGE KEYS
+    // ----------------------------
+    const STORAGE_CHECKS = "lateShiftChecklistState.v1";
+    const STORAGE_FORMS  = "lateShiftForms.v1";
 
+    // ----------------------------
+    // ELEMENTS
+    // ----------------------------
     const taskListEl = document.getElementById("taskList");
     const progressTextEl = document.getElementById("progressText");
     const progressBarEl = document.getElementById("progressBar");
@@ -297,6 +383,14 @@
     const timePill = document.getElementById("timePill");
     const weatherPill = document.getElementById("weatherPill");
 
+    const stenaFleet1 = document.getElementById("stenaFleet1");
+    const stenaFleet2 = document.getElementById("stenaFleet2");
+    const notesEl = document.getElementById("notes");
+    const staffBusRows = document.getElementById("staffBusRows");
+
+    // ----------------------------
+    // DATE + CLOCK
+    // ----------------------------
     function setTodayLabel() {
       const d = new Date();
       const formatted = d.toLocaleDateString(undefined, {
@@ -305,50 +399,57 @@
       todayPill.querySelector("span:last-child").textContent = formatted;
     }
 
-    // Live time pill (updates every second)
     function startClock() {
       const tick = () => {
         const now = new Date();
-        const t = now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+        const t = now.toLocaleTimeString(undefined, {
+          hour: "2-digit", minute: "2-digit", second: "2-digit"
+        });
         timePill.querySelector("span:last-child").textContent = t;
       };
       tick();
       setInterval(tick, 1000);
     }
 
-    // Weather via device location + Open-Meteo
+    // ----------------------------
+    // WEATHER (Birkenhead) refresh every 5 minutes
+    // ----------------------------
+    const FIXED_WEATHER_LOCATION = "Birkenhead, UK";
+    const WEATHER_REFRESH_MS = 5 * 60 * 1000;
+
+    function setWeatherText(text) {
+      weatherPill.querySelector("span:last-child").textContent = text;
+    }
+
     function weatherCodeToText(code) {
       const map = {
-        0: "Clear",
-        1: "Mainly clear",
-        2: "Partly cloudy",
-        3: "Overcast",
-        45: "Fog",
-        48: "Rime fog",
-        51: "Light drizzle",
-        53: "Drizzle",
-        55: "Heavy drizzle",
-        56: "Freezing drizzle",
-        57: "Heavy freezing drizzle",
-        61: "Light rain",
-        63: "Rain",
-        65: "Heavy rain",
-        66: "Freezing rain",
-        67: "Heavy freezing rain",
-        71: "Light snow",
-        73: "Snow",
-        75: "Heavy snow",
+        0: "Clear", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast",
+        45: "Fog", 48: "Rime fog",
+        51: "Light drizzle", 53: "Drizzle", 55: "Heavy drizzle",
+        56: "Freezing drizzle", 57: "Heavy freezing drizzle",
+        61: "Light rain", 63: "Rain", 65: "Heavy rain",
+        66: "Freezing rain", 67: "Heavy freezing rain",
+        71: "Light snow", 73: "Snow", 75: "Heavy snow",
         77: "Snow grains",
-        80: "Rain showers",
-        81: "Heavy showers",
-        82: "Violent showers",
-        85: "Snow showers",
-        86: "Heavy snow showers",
-        95: "Thunderstorm",
-        96: "Thunderstorm + hail",
-        99: "Thunderstorm + heavy hail",
+        80: "Rain showers", 81: "Heavy showers", 82: "Violent showers",
+        85: "Snow showers", 86: "Heavy snow showers",
+        95: "Thunderstorm", 96: "Thunderstorm + hail", 99: "Thunderstorm + heavy hail",
       };
       return map[code] ?? `Weather ${code}`;
+    }
+
+    async function geocodePlace(place) {
+      const url =
+        `https://geocoding-api.open-meteo.com/v1/search` +
+        `?name=${encodeURIComponent(place)}` +
+        `&count=1&language=en&format=json`;
+
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Geocoding failed");
+      const data = await res.json();
+      const first = data?.results?.[0];
+      if (!first) throw new Error("No geocoding results");
+      return { lat: first.latitude, lon: first.longitude };
     }
 
     async function fetchWeather(lat, lon) {
@@ -364,75 +465,166 @@
       return res.json();
     }
 
-    function setWeatherText(text) {
-      weatherPill.querySelector("span:last-child").textContent = text;
-    }
+    let cachedCoords = null;
 
-    async function initWeather() {
-      setWeatherText("Weather…");
-
-      if (!("geolocation" in navigator)) {
-        setWeatherText("Weather unavailable");
-        return;
-      }
-
-      navigator.geolocation.getCurrentPosition(async (pos) => {
-        try {
-          const { latitude, longitude } = pos.coords;
-          const data = await fetchWeather(latitude, longitude);
-
-          const c = data?.current;
-          if (!c) {
-            setWeatherText("Weather unavailable");
-            return;
-          }
-
-          const temp = Math.round(c.temperature_2m);
-          const wind = Math.round(c.wind_speed_10m);
-          const desc = weatherCodeToText(c.weather_code);
-
-          setWeatherText(`${temp}°C • ${desc} • Wind ${wind}mph`);
-        } catch (e) {
-          setWeatherText("Weather unavailable");
-        }
-      }, () => {
-        setWeatherText("Weather unavailable");
-      }, {
-        enableHighAccuracy: false,
-        timeout: 8000,
-        maximumAge: 10 * 60 * 1000
-      });
-    }
-
-    function loadState() {
+    async function updateWeatherOnce() {
       try {
-        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!cachedCoords) cachedCoords = await geocodePlace(FIXED_WEATHER_LOCATION);
+
+        const data = await fetchWeather(cachedCoords.lat, cachedCoords.lon);
+        const c = data?.current;
+        if (!c) throw new Error("No current weather");
+
+        const temp = Math.round(c.temperature_2m);
+        const wind = Math.round(c.wind_speed_10m);
+        const desc = weatherCodeToText(c.weather_code);
+
+        setWeatherText(`Birkenhead • ${temp}°C • ${desc} • Wind ${wind}mph`);
+      } catch {
+        setWeatherText("Birkenhead • Weather unavailable");
+      }
+    }
+
+    function initWeather() {
+      setWeatherText("Birkenhead weather…");
+      updateWeatherOnce();
+      setInterval(updateWeatherOnce, WEATHER_REFRESH_MS);
+    }
+
+    // ----------------------------
+    // CHECKLIST STORAGE
+    // ----------------------------
+    function loadChecks() {
+      try {
+        const raw = localStorage.getItem(STORAGE_CHECKS);
         return raw ? JSON.parse(raw) : {};
       } catch {
         return {};
       }
     }
-
-    function saveState(state) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    function saveChecks(state) {
+      localStorage.setItem(STORAGE_CHECKS, JSON.stringify(state));
     }
-
     function taskItemsOnly() {
       return ITEMS.filter(i => i.type === "task");
     }
 
-    function render() {
-      const state = loadState();
+    // ----------------------------
+    // FORMS (Stena/Staff/Notes) STORAGE
+    // ----------------------------
+    function loadForms() {
+      try {
+        const raw = localStorage.getItem(STORAGE_FORMS);
+        return raw ? JSON.parse(raw) : {};
+      } catch {
+        return {};
+      }
+    }
+    function saveForms(next) {
+      localStorage.setItem(STORAGE_FORMS, JSON.stringify(next));
+    }
+
+    function getFormState() {
+      const state = loadForms();
+      return {
+        stenaFleet1: state.stenaFleet1 || "",
+        stenaFleet2: state.stenaFleet2 || "",
+        notes: state.notes || "",
+        staffBus: Array.isArray(state.staffBus) ? state.staffBus : []
+      };
+    }
+
+    function setFormState(partial) {
+      const current = loadForms();
+      const next = { ...current, ...partial };
+      saveForms(next);
+    }
+
+    // Build staff bus rows (6 lines)
+    function buildStaffBusRows() {
+      staffBusRows.innerHTML = "";
+
+      for (let i = 0; i < 6; i++) {
+        const row = document.createElement("div");
+        row.className = "row two";
+        row.style.marginBottom = "8px";
+
+        const name = document.createElement("input");
+        name.placeholder = `Name ${i + 1}`;
+        name.dataset.staffIndex = String(i);
+        name.dataset.staffField = "name";
+
+        const time = document.createElement("input");
+        time.placeholder = `Time ${i + 1} (e.g., 18:10)`;
+        time.dataset.staffIndex = String(i);
+        time.dataset.staffField = "time";
+
+        row.appendChild(name);
+        row.appendChild(time);
+        staffBusRows.appendChild(row);
+      }
+    }
+
+    function hydrateForms() {
+      const state = getFormState();
+
+      stenaFleet1.value = state.stenaFleet1;
+      stenaFleet2.value = state.stenaFleet2;
+      notesEl.value = state.notes;
+
+      // Staff bus rows
+      const rows = staffBusRows.querySelectorAll("input");
+      rows.forEach(inp => {
+        const idx = Number(inp.dataset.staffIndex);
+        const field = inp.dataset.staffField;
+        const entry = state.staffBus[idx] || { name: "", time: "" };
+        inp.value = entry[field] || "";
+      });
+    }
+
+    // Debounce helper (for notes typing etc.)
+    function debounce(fn, ms=250) {
+      let t;
+      return (...args) => {
+        clearTimeout(t);
+        t = setTimeout(() => fn(...args), ms);
+      };
+    }
+
+    function wireFormSaving() {
+      stenaFleet1.addEventListener("input", () => setFormState({ stenaFleet1: stenaFleet1.value }));
+      stenaFleet2.addEventListener("input", () => setFormState({ stenaFleet2: stenaFleet2.value }));
+
+      notesEl.addEventListener("input", debounce(() => {
+        setFormState({ notes: notesEl.value });
+      }, 250));
+
+      staffBusRows.addEventListener("input", (e) => {
+        const target = e.target;
+        if (!(target instanceof HTMLInputElement)) return;
+        const idx = Number(target.dataset.staffIndex);
+        const field = target.dataset.staffField;
+
+        const state = getFormState();
+        const staff = Array.from({ length: 6 }, (_, i) => state.staffBus[i] || { name: "", time: "" });
+
+        staff[idx] = { ...staff[idx], [field]: target.value };
+        setFormState({ staffBus: staff });
+      });
+    }
+
+    // ----------------------------
+    // RENDER CHECKLIST
+    // ----------------------------
+    function renderChecklist() {
+      const state = loadChecks();
       taskListEl.innerHTML = "";
 
       ITEMS.forEach(item => {
         if (item.type === "header") {
           const h = document.createElement("div");
           h.className = "section";
-          h.innerHTML = `
-            <span>${item.title}</span>
-            <small>${item.hint || ""}</small>
-          `;
+          h.innerHTML = `<span>${item.title}</span><small>${item.hint || ""}</small>`;
           taskListEl.appendChild(h);
           return;
         }
@@ -446,9 +638,9 @@
         cb.type = "checkbox";
         cb.checked = isDone;
         cb.addEventListener("change", () => {
-          const next = loadState();
+          const next = loadChecks();
           next[item.id] = cb.checked;
-          saveState(next);
+          saveChecks(next);
           row.classList.toggle("done", cb.checked);
           updateProgress();
         });
@@ -477,7 +669,7 @@
     }
 
     function updateProgress() {
-      const state = loadState();
+      const state = loadChecks();
       const tasks = taskItemsOnly();
       const total = tasks.length;
       const done = tasks.reduce((acc, t) => acc + (state[t.id] ? 1 : 0), 0);
@@ -489,13 +681,24 @@
       markAllBtn.textContent = (done === total && total > 0) ? "Unmark all" : "Mark all";
     }
 
+    // ----------------------------
+    // BUTTONS
+    // ----------------------------
     clearBtn.addEventListener("click", () => {
-      localStorage.removeItem(STORAGE_KEY);
-      render();
+      // Clear checklist ticks
+      localStorage.removeItem(STORAGE_CHECKS);
+
+      // Clear forms
+      localStorage.removeItem(STORAGE_FORMS);
+
+      // Reset UI
+      renderChecklist();
+      buildStaffBusRows();
+      hydrateForms();
     });
 
     markAllBtn.addEventListener("click", () => {
-      const state = loadState();
+      const state = loadChecks();
       const tasks = taskItemsOnly();
       const total = tasks.length;
       const done = tasks.reduce((acc, t) => acc + (state[t.id] ? 1 : 0), 0);
@@ -503,15 +706,22 @@
 
       const next = {};
       tasks.forEach(t => next[t.id] = mark);
-      saveState(next);
-      render();
+      saveChecks(next);
+      renderChecklist();
     });
 
-    // Boot
+    // ----------------------------
+    // BOOT
+    // ----------------------------
     setTodayLabel();
     startClock();
-    initWeather(); // asks for location permission once
-    render();
+    initWeather();
+
+    buildStaffBusRows();
+    hydrateForms();
+    wireFormSaving();
+
+    renderChecklist();
   </script>
 </body>
 </html>
