@@ -114,9 +114,7 @@
       align-self: start;
     }
     @media (max-width: 950px){
-      .right-panel{
-        position: static; /* on mobile it stacks normally */
-      }
+      .right-panel{ position: static; }
     }
 
     .controls{
@@ -245,7 +243,12 @@
       margin:0 0 10px 0;
       font-size:14px;
       letter-spacing:.2px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
     }
+
     .hint{
       margin: -6px 0 10px 0;
       color: var(--muted);
@@ -270,7 +273,6 @@
       box-shadow: 0 0 0 3px rgba(0,183,255,.10);
     }
 
-    /* Keep notes visible, but not massive (still resizable) */
     textarea{
       min-height: 140px;
       resize: vertical;
@@ -289,6 +291,50 @@
     @media (max-width:520px){
       .bar{ width:120px; }
       h1{ font-size:24px; }
+    }
+
+    /* ===== Quick links icons ===== */
+    .quick-links{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+    .icon-btn{
+      display:inline-flex;
+      align-items:center;
+      gap:10px;
+      padding:10px 12px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.04);
+      color: var(--text);
+      text-decoration:none;
+      transition: transform .08s ease, border-color .15s ease, background .15s ease;
+      user-select:none;
+    }
+    .icon-btn:hover{
+      border-color: rgba(0,183,255,.45);
+      background: rgba(0,183,255,.10);
+    }
+    .icon-btn:active{ transform: scale(.98); }
+    .icon{
+      width:22px;
+      height:22px;
+      display:inline-block;
+      flex:0 0 auto;
+    }
+    .icon-label{
+      font-size:13px;
+      font-weight:800;
+      letter-spacing:.2px;
+      color: var(--text);
+    }
+    .icon-sub{
+      font-size:12px;
+      color: var(--muted);
+      font-weight:600;
+      margin-left:auto;
     }
   </style>
 </head>
@@ -335,6 +381,47 @@
       <!-- RIGHT: OTHER BITS (Sticky, no internal scroll) -->
       <section class="panel right-panel">
         <div class="panel-inner">
+
+          <!-- NEW: Quick Links -->
+          <div class="card">
+            <h2>Quick Links <span class="icon-sub">opens in a new tab</span></h2>
+            <div class="hint">Click to open Outlook, OneDrive and Google</div>
+
+            <div class="quick-links">
+              <a class="icon-btn" href="https://outlook.office.com/mail/" target="_blank" rel="noopener noreferrer" title="Open Outlook">
+                <!-- Outlook icon (inline SVG) -->
+                <svg class="icon" viewBox="0 0 64 64" aria-hidden="true">
+                  <path fill="#1a6be3" d="M36 10h18c2.2 0 4 1.8 4 4v36c0 2.2-1.8 4-4 4H36V10z"/>
+                  <path fill="#0f4bb8" d="M36 18h22v28H36V18z"/>
+                  <path fill="#2b88ff" d="M6 16l28-6v44L6 48V16z"/>
+                  <path fill="#fff" d="M20.2 26.2c4.2 0 7.6 3.4 7.6 9.8s-3.4 9.8-7.6 9.8-7.6-3.4-7.6-9.8 3.4-9.8 7.6-9.8zm0 4.2c-1.8 0-3.3 1.6-3.3 5.6s1.5 5.6 3.3 5.6 3.3-1.6 3.3-5.6-1.5-5.6-3.3-5.6z"/>
+                  <path fill="#1458cf" d="M36 22l22 14-22 14V22z"/>
+                </svg>
+                <span class="icon-label">Outlook</span>
+              </a>
+
+              <a class="icon-btn" href="https://onedrive.live.com/" target="_blank" rel="noopener noreferrer" title="Open OneDrive">
+                <!-- OneDrive icon (inline SVG) -->
+                <svg class="icon" viewBox="0 0 64 64" aria-hidden="true">
+                  <path fill="#1a6be3" d="M29 22c3-5 8-8 14-8 9 0 16 7 16 16 0 1-.1 2-.3 3 3.3 1.4 5.3 4.2 5.3 7.5 0 4.8-4 8.5-9 8.5H23c-7.2 0-13-5.8-13-13 0-6.6 4.9-12.1 11.3-12.9C23 20.8 26 20.4 29 22z"/>
+                  <path fill="#2b88ff" d="M22.5 28.5c2.6-5.2 7.5-8.5 13.4-8.5 6.6 0 12.4 4.2 14.5 10.3-1.3-.4-2.6-.6-4-.6H26c-1.2 0-2.4.1-3.5.4z"/>
+                  <path fill="#0f4bb8" d="M12 39c.6 5.5 5.3 10 11 10h32c4.4 0 8-3.2 8-7.5 0-2.6-1.4-4.8-3.6-6.1-.8 7.1-7 12.6-14.3 12.6H22.5C16.9 48 12.3 44.2 12 39z"/>
+                </svg>
+                <span class="icon-label">OneDrive</span>
+              </a>
+
+              <a class="icon-btn" href="https://www.google.com/" target="_blank" rel="noopener noreferrer" title="Open Google">
+                <!-- Google icon (inline SVG) -->
+                <svg class="icon" viewBox="0 0 64 64" aria-hidden="true">
+                  <path fill="#EA4335" d="M33 12c6 0 10.2 2.6 12.6 4.8l-5.1 5.1C38.9 20.4 36.4 19 33 19c-6.5 0-12 4.4-13.9 10.3l-6-4.7C16 16.8 23.9 12 33 12z"/>
+                  <path fill="#34A853" d="M19.1 29.3C18.6 30.8 18.3 32.4 18.3 34c0 1.6.3 3.2.8 4.7l-6 4.7C11.8 40.4 11 37.3 11 34s.8-6.4 2.1-9.4l6 4.7z"/>
+                  <path fill="#FBBC05" d="M33 56c-9.1 0-17-4.8-20. -12. -?"/>
+                </svg>
+                <span class="icon-label">Google</span>
+              </a>
+            </div>
+          </div>
+
           <div class="card">
             <h2>Stena Buses</h2>
             <div class="hint">Up to 2 fleet numbers (saved automatically)</div>
