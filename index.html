@@ -107,16 +107,6 @@
 
     .panel-inner{ padding:18px; }
 
-    /* Sticky right panel (NO internal scrollbar) */
-    .right-panel{
-      position: sticky;
-      top: 16px;
-      align-self: start;
-    }
-    @media (max-width: 950px){
-      .right-panel{ position: static; }
-    }
-
     .controls{
       display:flex;
       flex-wrap:wrap;
@@ -312,12 +302,15 @@
       text-decoration:none;
       transition: transform .08s ease, border-color .15s ease, background .15s ease;
       user-select:none;
+      flex: 1 1 140px;
+      justify-content:flex-start;
     }
     .icon-btn:hover{
       border-color: rgba(0,183,255,.45);
       background: rgba(0,183,255,.10);
     }
     .icon-btn:active{ transform: scale(.98); }
+
     .icon{
       width:22px;
       height:22px;
@@ -335,6 +328,65 @@
       color: var(--muted);
       font-weight:600;
       margin-left:auto;
+    }
+
+    /* Simple electric-blue Google badge */
+    .g-badge{
+      width:22px;
+      height:22px;
+      border-radius:8px;
+      display:grid;
+      place-items:center;
+      font-weight:900;
+      font-size:14px;
+      letter-spacing:.2px;
+      color:#061018;
+      background: linear-gradient(90deg, var(--blue), var(--blue2));
+      box-shadow: 0 0 0 3px rgba(0,183,255,.12);
+    }
+
+    /* Motivational quote */
+    .quote-box{
+      border: 1px solid rgba(0,183,255,.25);
+      background: rgba(0,183,255,.06);
+      border-radius: 16px;
+      padding: 12px;
+    }
+    .quote{
+      margin:0;
+      font-size:14px;
+      line-height:1.4;
+      font-weight:800;
+      letter-spacing:.2px;
+    }
+    .quote-by{
+      margin:8px 0 0 0;
+      color: var(--muted);
+      font-size:12px;
+      font-weight:600;
+    }
+    .quote-actions{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-top:12px;
+      align-items:center;
+      justify-content:space-between;
+    }
+    .toggle{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      color: var(--muted);
+      font-size:12px;
+      user-select:none;
+    }
+    .toggle input{ width:16px; height:16px; accent-color: var(--blue); }
+    .tiny-btn{
+      padding:9px 12px;
+      border-radius:14px;
+      font-weight:800;
+      font-size:13px;
     }
   </style>
 </head>
@@ -378,14 +430,14 @@
         </div>
       </section>
 
-      <!-- RIGHT: OTHER BITS (Sticky, no internal scroll) -->
-      <section class="panel right-panel">
+      <!-- RIGHT: OTHER BITS (NOT sticky) -->
+      <section class="panel">
         <div class="panel-inner">
 
-          <!-- NEW: Quick Links -->
+          <!-- Quick Links -->
           <div class="card">
             <h2>Quick Links <span class="icon-sub">opens in a new tab</span></h2>
-            <div class="hint">Click to open Outlook, OneDrive and Google</div>
+            <div class="hint">Outlook · OneDrive · Google</div>
 
             <div class="quick-links">
               <a class="icon-btn" href="https://outlook.office.com/mail/" target="_blank" rel="noopener noreferrer" title="Open Outlook">
@@ -411,14 +463,28 @@
               </a>
 
               <a class="icon-btn" href="https://www.google.com/" target="_blank" rel="noopener noreferrer" title="Open Google">
-                <!-- Google icon (inline SVG) -->
-                <svg class="icon" viewBox="0 0 64 64" aria-hidden="true">
-                  <path fill="#EA4335" d="M33 12c6 0 10.2 2.6 12.6 4.8l-5.1 5.1C38.9 20.4 36.4 19 33 19c-6.5 0-12 4.4-13.9 10.3l-6-4.7C16 16.8 23.9 12 33 12z"/>
-                  <path fill="#34A853" d="M19.1 29.3C18.6 30.8 18.3 32.4 18.3 34c0 1.6.3 3.2.8 4.7l-6 4.7C11.8 40.4 11 37.3 11 34s.8-6.4 2.1-9.4l6 4.7z"/>
-                  <path fill="#FBBC05" d="M33 56c-9.1 0-17-4.8-20. -12. -?"/>
-                </svg>
+                <span class="g-badge" aria-hidden="true">G</span>
                 <span class="icon-label">Google</span>
               </a>
+            </div>
+          </div>
+
+          <!-- Motivational Quotes -->
+          <div class="card">
+            <h2>Motivation <span class="icon-sub" id="quoteCounter">—</span></h2>
+            <div class="hint">Quick boost for the shift (saved)</div>
+
+            <div class="quote-box">
+              <p class="quote" id="quoteText">—</p>
+              <p class="quote-by" id="quoteBy"></p>
+
+              <div class="quote-actions">
+                <button class="tiny-btn" id="newQuoteBtn" type="button">New quote</button>
+                <label class="toggle">
+                  <input type="checkbox" id="autoQuoteToggle" />
+                  Auto change (30 min)
+                </label>
+              </div>
             </div>
           </div>
 
@@ -504,6 +570,7 @@
     // ----------------------------
     const STORAGE_CHECKS = "lateShiftChecklistState.v1";
     const STORAGE_FORMS  = "lateShiftForms.v1";
+    const STORAGE_QUOTES = "lateShiftQuoteState.v1";
 
     // ----------------------------
     // ELEMENTS
@@ -522,6 +589,12 @@
     const stenaFleet2 = document.getElementById("stenaFleet2");
     const notesEl = document.getElementById("notes");
     const staffBusRows = document.getElementById("staffBusRows");
+
+    const quoteTextEl = document.getElementById("quoteText");
+    const quoteByEl = document.getElementById("quoteBy");
+    const quoteCounterEl = document.getElementById("quoteCounter");
+    const newQuoteBtn = document.getElementById("newQuoteBtn");
+    const autoQuoteToggle = document.getElementById("autoQuoteToggle");
 
     // ----------------------------
     // DATE + CLOCK
@@ -751,6 +824,83 @@
     }
 
     // ----------------------------
+    // QUOTES
+    // ----------------------------
+    const QUOTES = [
+      { q: "Do the next right thing.", by: "Shift rule" },
+      { q: "Slow is smooth. Smooth is fast.", by: "Operations mantra" },
+      { q: "Control the controllables.", by: "Daily reminder" },
+      { q: "Stay calm. Stay sharp.", by: "Late shift energy" },
+      { q: "One task at a time — then the next.", by: "Checklist logic" },
+      { q: "You don’t have to be perfect — just consistent.", by: "Consistency wins" },
+      { q: "Small wins stack up.", by: "Keep moving" },
+      { q: "Make it easy for the morning shift.", by: "Good handover" },
+      { q: "If you’re not sure… ask.", by: "Always" }
+    ];
+
+    function loadQuoteState(){
+      try{
+        const raw = localStorage.getItem(STORAGE_QUOTES);
+        return raw ? JSON.parse(raw) : { idx: 0, auto: false };
+      }catch{
+        return { idx: 0, auto: false };
+      }
+    }
+
+    function saveQuoteState(state){
+      localStorage.setItem(STORAGE_QUOTES, JSON.stringify(state));
+    }
+
+    function setQuote(idx){
+      const q = QUOTES[idx % QUOTES.length];
+      quoteTextEl.textContent = `“${q.q}”`;
+      quoteByEl.textContent = q.by ? `— ${q.by}` : "";
+      quoteCounterEl.textContent = `${(idx % QUOTES.length) + 1}/${QUOTES.length}`;
+
+      const st = loadQuoteState();
+      saveQuoteState({ ...st, idx: idx % QUOTES.length });
+    }
+
+    function nextQuote(){
+      const st = loadQuoteState();
+      setQuote((st.idx ?? 0) + 1);
+    }
+
+    let quoteTimer = null;
+    const QUOTE_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
+
+    function setAutoQuotes(enabled){
+      const st = loadQuoteState();
+      saveQuoteState({ ...st, auto: enabled });
+
+      if (quoteTimer) {
+        clearInterval(quoteTimer);
+        quoteTimer = null;
+      }
+      if (enabled) {
+        quoteTimer = setInterval(nextQuote, QUOTE_INTERVAL_MS);
+      }
+    }
+
+    function initQuotes(){
+      const st = loadQuoteState();
+      autoQuoteToggle.checked = !!st.auto;
+
+      // If first time, pick a random quote; otherwise keep last shown
+      if (typeof st.idx !== "number") {
+        const r = Math.floor(Math.random() * QUOTES.length);
+        setQuote(r);
+      } else {
+        setQuote(st.idx);
+      }
+
+      newQuoteBtn.addEventListener("click", nextQuote);
+      autoQuoteToggle.addEventListener("change", () => setAutoQuotes(autoQuoteToggle.checked));
+
+      if (st.auto) setAutoQuotes(true);
+    }
+
+    // ----------------------------
     // RENDER CHECKLIST
     // ----------------------------
     function renderChecklist() {
@@ -824,6 +974,8 @@
     clearBtn.addEventListener("click", () => {
       localStorage.removeItem(STORAGE_CHECKS);
       localStorage.removeItem(STORAGE_FORMS);
+      // Keep quote state by default (nice), but you can clear it too if you want:
+      // localStorage.removeItem(STORAGE_QUOTES);
 
       renderChecklist();
       buildStaffBusRows();
@@ -854,6 +1006,7 @@
     hydrateForms();
     wireFormSaving();
 
+    initQuotes();
     renderChecklist();
   </script>
 </body>
