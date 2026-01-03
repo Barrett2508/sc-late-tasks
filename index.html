@@ -32,7 +32,8 @@
       justify-content:center;
       padding:24px;
     }
-    .wrap{ width:min(980px, 100%); display:grid; gap:16px; }
+    .wrap{ width:min(1200px, 100%); display:grid; gap:16px; }
+
     header{
       display:flex; align-items:flex-end; justify-content:space-between; gap:12px;
       padding:6px 4px;
@@ -70,16 +71,33 @@
       flex:0 0 auto;
     }
 
+    /* === TWO PANEL LAYOUT === */
+    .main-grid{
+      display:grid;
+      grid-template-columns: 1.25fr .75fr;
+      gap:16px;
+      align-items:start;
+    }
+    @media (max-width: 950px){
+      .main-grid{ grid-template-columns: 1fr; }
+    }
+
     .panel{
-      background: rgba(255,255,255,.06);
+      background: var(--panel);
       border:1px solid var(--stroke);
       border-radius: var(--radius);
       box-shadow: var(--shadow);
       backdrop-filter: blur(14px);
       -webkit-backdrop-filter: blur(14px);
       overflow:hidden;
+      min-height: 200px;
     }
     .panel-inner{ padding:18px; }
+    .panel-inner.scroll{
+      max-height: calc(100vh - 250px);
+      overflow-y: auto;
+      padding-right: 10px;
+    }
 
     .controls{
       display:flex; flex-wrap:wrap; gap:10px; justify-content:space-between; align-items:center;
@@ -183,17 +201,13 @@
     }
 
     /* Forms */
-    .form-grid{
-      display:grid;
-      gap:12px;
-      margin-top:10px;
-    }
     .card{
       border:1px solid var(--stroke);
       background: rgba(255,255,255,.04);
       border-radius:16px;
       padding:14px;
     }
+    .card + .card{ margin-top:12px; }
     .card h2{
       margin:0 0 10px 0;
       font-size:14px;
@@ -211,10 +225,6 @@
     .row.two{
       grid-template-columns: 1fr 1fr;
     }
-    .row.three{
-      grid-template-columns: 1.2fr .8fr auto;
-      align-items:center;
-    }
     input, textarea{
       width:100%;
       border:1px solid rgba(255,255,255,.14);
@@ -230,7 +240,7 @@
       box-shadow: 0 0 0 3px rgba(0,183,255,.10);
     }
     textarea{
-      min-height: 140px;
+      min-height: 160px;
       resize: vertical;
       line-height: 1.4;
     }
@@ -239,10 +249,8 @@
       color: var(--muted);
       margin-top: 8px;
     }
-
     @media (max-width:720px){
       .row.two{ grid-template-columns: 1fr; }
-      .row.three{ grid-template-columns: 1fr 1fr; }
     }
     @media (max-width:520px){
       .bar{ width:120px; }
@@ -265,12 +273,35 @@
       </div>
     </header>
 
-    <section class="panel">
-      <div class="panel-inner">
-        <div class="task-list" id="taskList"></div>
+    <div class="main-grid">
 
-        <!-- EXTRA INPUT SECTIONS -->
-        <div class="form-grid">
+      <!-- LEFT: CHECKLIST -->
+      <section class="panel">
+        <div class="panel-inner">
+          <div class="task-list" id="taskList"></div>
+
+          <div class="footer-note">
+            <strong>REMEMBER:</strong> If you’re not sure… ask. If you make a mistake… admit it.
+          </div>
+        </div>
+
+        <div class="controls">
+          <div class="progress">
+            <span id="progressText">0/0 done</span>
+            <div class="bar" aria-hidden="true"><span id="progressBar"></span></div>
+          </div>
+
+          <div class="btns">
+            <button id="markAllBtn" type="button">Mark all</button>
+            <button id="clearBtn" type="button" class="danger">Clear for next day</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- RIGHT: STENA / STAFF / NOTES -->
+      <section class="panel">
+        <div class="panel-inner scroll">
+
           <div class="card">
             <h2>Stena Buses</h2>
             <div class="hint">Up to 2 fleet numbers (saved automatically)</div>
@@ -289,28 +320,14 @@
 
           <div class="card">
             <h2>Notes</h2>
-            <div class="hint">Keep track of what happened today (saved automatically)</div>
+            <div class="hint">Keep track of what happened today etc (saved automatically)</div>
             <textarea id="notes" placeholder="Write notes here..."></textarea>
           </div>
-        </div>
 
-        <div class="footer-note">
-          <strong>REMEMBER:</strong> If you’re not sure… ask. If you make a mistake… admit it.
         </div>
-      </div>
+      </section>
 
-      <div class="controls">
-        <div class="progress">
-          <span id="progressText">0/0 done</span>
-          <div class="bar" aria-hidden="true"><span id="progressBar"></span></div>
-        </div>
-
-        <div class="btns">
-          <button id="markAllBtn" type="button">Mark all</button>
-          <button id="clearBtn" type="button" class="danger">Clear for next day</button>
-        </div>
-      </div>
-    </section>
+    </div>
   </div>
 
   <script>
@@ -685,13 +702,9 @@
     // BUTTONS
     // ----------------------------
     clearBtn.addEventListener("click", () => {
-      // Clear checklist ticks
       localStorage.removeItem(STORAGE_CHECKS);
-
-      // Clear forms
       localStorage.removeItem(STORAGE_FORMS);
 
-      // Reset UI
       renderChecklist();
       buildStaffBusRows();
       hydrateForms();
