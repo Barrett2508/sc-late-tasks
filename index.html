@@ -534,6 +534,73 @@
       text-underline-offset: 3px;
     }
 
+  
+    /* Duty split lists (all times + all destinations) */
+    .duty-split{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:12px;
+      margin-bottom:12px;
+    }
+    .split-card{
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.04);
+      border-radius:16px;
+      padding:12px;
+      min-width:0;
+    }
+    .split-title{
+      font-weight:900;
+      letter-spacing:.2px;
+      margin:0 0 10px 0;
+      font-size:13px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .split-count{
+      color: var(--muted);
+      font-size:12px;
+      font-weight:700;
+      white-space:nowrap;
+    }
+    .split-list{
+      display:grid;
+      gap:8px;
+      max-height: 260px;
+      overflow:auto;
+      padding-right:4px;
+    }
+    .split-item{
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.03);
+      border-radius:14px;
+      padding:9px 10px;
+      font-size:12.5px;
+      color: var(--text);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      min-width:0;
+    }
+    .split-item .mono{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-weight:900;
+      flex:0 0 auto;
+    }
+    .split-item .dest{
+      min-width:0;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+      font-weight:800;
+    }
+    @media (max-width: 760px){
+      .duty-split{ grid-template-columns: 1fr; }
+      .split-list{ max-height: 220px; }
+    }
   </style>
 </head>
 
@@ -690,6 +757,17 @@
       <div class="modal-body">
         <div class="duty-kv" id="dutyKV"></div>
         <div class="raw-toggle" id="rawToggle">Show raw</div>
+        <div class="duty-split" id="dutySplit">
+          <div class="split-card">
+            <div class="split-title">Destinations <span class="split-count" id="destCount">0</span></div>
+            <div class="split-list" id="destList"></div>
+          </div>
+          <div class="split-card">
+            <div class="split-title">Times <span class="split-count" id="timeCount">0</span></div>
+            <div class="split-list" id="timeList"></div>
+          </div>
+        </div>
+        <div class="mini" id="pairHint">—</div>
         <div class="duty-table" id="dutyTable"></div>
         <pre class="duty-pre" id="dutyModalBody" style="display:none;"></pre>
       </div>
@@ -791,6 +869,12 @@
     const dutyModalMeta = document.getElementById("dutyModalMeta");
     const dutyModalBody = document.getElementById("dutyModalBody");
     const dutyTable = document.getElementById("dutyTable");
+    const dutySplit = document.getElementById("dutySplit");
+    const destList = document.getElementById("destList");
+    const timeList = document.getElementById("timeList");
+    const destCount = document.getElementById("destCount");
+    const timeCount = document.getElementById("timeCount");
+    const pairHint = document.getElementById("pairHint");
     const rawToggle = document.getElementById("rawToggle");
     const dutyKV = document.getElementById("dutyKV");
 
@@ -1217,7 +1301,7 @@
     // 1) collect a block of time-only lines (HH:MM)
     // 2) collect destination lines that look like stops/locations (letters + not headers)
     // 3) if counts line up, zip them together
-    function parseTimetableRows(raw){
+    function parseDutyParts(raw){
       const lines = String(raw || "")
         .split(/\r?\n/)
         .map(l => l.replace(/\s+/g, " ").trim())
@@ -1235,27 +1319,11 @@
       };
       const cleanDots = (l) => l.replace(/\.{2,}/g, " ").replace(/\s+/g, " ").trim();
 
-      // Find the biggest consecutive block of time-only lines
-      let bestStart = -1, bestLen = 0, curStart = -1, curLen = 0;
-      for (let i=0;i<lines.length;i++){
-        if (isTimeOnly(lines[i])) {
-          if (curStart === -1) curStart = i;
-          curLen++;
-          if (curLen > bestLen){ bestLen = curLen; bestStart = curStart; }
-        } else {
-          curStart = -1; curLen = 0;
-        }
-      }
-
+      // All times
       const times = [];
-      if (bestStart !== -1 && bestLen > 0){
-        for (let i=bestStart;i<bestStart+bestLen;i++) times.push(lines[i]);
-      } else {
-        // fallback: all time-only lines
-        lines.forEach(l => { if (isTimeOnly(l)) times.push(l); });
-      }
+      lines.forEach(l => { if (isTimeOnly(l)) times.push(l); });
 
-      // Destination candidates: lines with letters, not header-ish, not time-only
+      // All destination-ish lines
       const dests = [];
       lines.forEach(l => {
         if (isTimeOnly(l)) return;
@@ -1263,42 +1331,29 @@
         const c = cleanDots(l);
         if (!c) return;
         if (!/[A-Za-z]/.test(c)) return;
-        // ignore obvious non-stop fragments
         if (/^\d+$/.test(c)) return;
         if (/^TRIP:/i.test(c)) return;
         if (/^ETM:/i.test(c)) return;
         if (/^Take Vehicle/i.test(c)) return;
         if (/^at \d{2}:\d{2}/i.test(c)) return;
-
         dests.push(c);
       });
 
-      // Often the duty contains general lines (e.g. "Rock Ferry Depot" repeated) before the timetable blocks.
-      // We'll prefer pairing from the *end* if that gives a better match (timetable usually near end).
-      const tryZip = (t, d) => {
-        const n = Math.min(t.length, d.length);
-        const out = [];
-        for (let i=0;i<n;i++){
-          out.push({ destination: d[i], time: t[i] });
-        }
-        return out;
-      };
-
-      // Choose the best alignment
+      // Paired (best-effort)
+      const paired = [];
       if (times.length && dests.length){
-        if (dests.length === times.length){
-          return tryZip(times, dests);
-        }
-        // If dests longer, take last N dests (timetable tends to be later)
-        if (dests.length > times.length){
-          return tryZip(times, dests.slice(dests.length - times.length));
-        }
-        // If times longer, take last N times
-        if (times.length > dests.length){
-          return tryZip(times.slice(times.length - dests.length), dests);
+        if (times.length === dests.length){
+          for (let i=0;i<times.length;i++) paired.push({ destination: dests[i], time: times[i] });
+        } else if (dests.length > times.length) {
+          const d2 = dests.slice(dests.length - times.length);
+          for (let i=0;i<times.length;i++) paired.push({ destination: d2[i], time: times[i] });
+        } else {
+          const t2 = times.slice(times.length - dests.length);
+          for (let i=0;i<dests.length;i++) paired.push({ destination: dests[i], time: t2[i] });
         }
       }
-      return [];
+
+      return { times, dests, paired };
     }
 
     function toDutyRecord(d){
@@ -1356,27 +1411,47 @@
         dutyKV.appendChild(kv("Meal", duty.meal_break));
       }
 
-      // Build timetable rows: destination + time on same row
+      // Extract ALL destinations and ALL times (and also show a paired view if possible)
       const raw = (duty?.raw_text || "").trim();
-      const rows = parseTimetableRows(raw);
+      const parts = parseDutyParts(raw);
 
+      // Destinations list
+      destList.innerHTML = "";
+      parts.dests.forEach((d) => {
+        const el = document.createElement("div");
+        el.className = "split-item";
+        el.innerHTML = `<div class="dest">${escapeHtml(d)}</div>`;
+        destList.appendChild(el);
+      });
+      destCount.textContent = `${parts.dests.length}`;
+
+      // Times list
+      timeList.innerHTML = "";
+      parts.times.forEach((t) => {
+        const el = document.createElement("div");
+        el.className = "split-item";
+        el.innerHTML = `<div class="mono">${escapeHtml(t)}</div>`;
+        timeList.appendChild(el);
+      });
+      timeCount.textContent = `${parts.times.length}`;
+
+      // Paired view (best-effort) below
       dutyTable.innerHTML = "";
-      if (rows.length){
-        rows.forEach(r => {
+      if (parts.paired.length){
+        pairHint.textContent = "Paired view (best-effort):";
+        parts.paired.forEach(r => {
           const rowEl = document.createElement("div");
           rowEl.className = "duty-row";
           rowEl.innerHTML = `<div class="duty-dest">${escapeHtml(r.destination)}</div><div class="duty-time">${escapeHtml(r.time)}</div>`;
           dutyTable.appendChild(rowEl);
         });
-        rawToggle.style.display = "inline";
       } else {
-        dutyTable.innerHTML = `<div class="mini">No structured timetable found — showing raw duty text.</div>`;
-        rawToggle.style.display = "none";
-        dutyModalBody.style.display = "block";
+        pairHint.textContent = "No paired view available for this duty (showing all destinations and all times above).";
       }
 
       dutyModalBody.textContent = raw || "No duty text available in duties.json for this duty.";
-      dutyModalBody.style.display = "none"; // default hidden (toggle shows it)
+      dutyModalBody.style.display = "none";
+      rawToggle.style.display = "inline";
       rawToggle.textContent = "Show raw";
     }
 
