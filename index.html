@@ -489,6 +489,51 @@
     @media (max-width: 700px){
       .duty-kv{ grid-template-columns: 1fr; }
     }
+  
+    /* Duty timetable table */
+    .duty-table{
+      display:grid;
+      gap:8px;
+      margin-bottom:12px;
+    }
+    .duty-row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      padding:10px 12px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.04);
+    }
+    .duty-dest{
+      font-weight:900;
+      letter-spacing:.2px;
+      min-width:0;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+    .duty-time{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-weight:900;
+      color: var(--text);
+      flex:0 0 auto;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid rgba(0,183,255,.25);
+      background: rgba(0,183,255,.06);
+    }
+    .raw-toggle{
+      font-size:12px;
+      color: var(--muted);
+      cursor:pointer;
+      user-select:none;
+      text-decoration: underline;
+      text-decoration-color: rgba(0,183,255,.55);
+      text-underline-offset: 3px;
+    }
+
   </style>
 </head>
 
@@ -644,7 +689,9 @@
       </div>
       <div class="modal-body">
         <div class="duty-kv" id="dutyKV"></div>
-        <pre class="duty-pre" id="dutyModalBody"></pre>
+        <div class="raw-toggle" id="rawToggle">Show raw</div>
+        <div class="duty-table" id="dutyTable"></div>
+        <pre class="duty-pre" id="dutyModalBody" style="display:none;"></pre>
       </div>
     </div>
   </div>
@@ -743,6 +790,8 @@
     const dutyModalTitle = document.getElementById("dutyModalTitle");
     const dutyModalMeta = document.getElementById("dutyModalMeta");
     const dutyModalBody = document.getElementById("dutyModalBody");
+    const dutyTable = document.getElementById("dutyTable");
+    const rawToggle = document.getElementById("rawToggle");
     const dutyKV = document.getElementById("dutyKV");
 
     // ----------------------------
@@ -1154,6 +1203,104 @@
       return String(s ?? "").trim().replace(/[^\d]/g, "");
     }
 
+    function escapeHtml(str){
+      return String(str ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    // Attempt to reconstruct timetable where PDF extraction splits times and destinations into separate columns.
+    // Strategy:
+    // 1) collect a block of time-only lines (HH:MM)
+    // 2) collect destination lines that look like stops/locations (letters + not headers)
+    // 3) if counts line up, zip them together
+    function parseTimetableRows(raw){
+      const lines = String(raw || "")
+        .split(/\r?\n/)
+        .map(l => l.replace(/\s+/g, " ").trim())
+        .filter(Boolean);
+
+      const isTimeOnly = (l) => /^\d{2}:\d{2}$/.test(l);
+      const isHeaderish = (l) => {
+        const up = l.toUpperCase();
+        return (
+          up.includes("SIGN ON") || up.includes("SIGN OFF") || up.includes("PAY TIME") ||
+          up.includes("MEAL BREAK") || up.includes("COMMENCING") || up.includes("POWERED BY") ||
+          up.includes("SCHEDULE:") || up.startsWith("DEST:") || up.startsWith("SER:") ||
+          up.startsWith("BUS NO") || up.startsWith("PRE-TRIP") || up.includes("OPTIBUS")
+        );
+      };
+      const cleanDots = (l) => l.replace(/\.{2,}/g, " ").replace(/\s+/g, " ").trim();
+
+      // Find the biggest consecutive block of time-only lines
+      let bestStart = -1, bestLen = 0, curStart = -1, curLen = 0;
+      for (let i=0;i<lines.length;i++){
+        if (isTimeOnly(lines[i])) {
+          if (curStart === -1) curStart = i;
+          curLen++;
+          if (curLen > bestLen){ bestLen = curLen; bestStart = curStart; }
+        } else {
+          curStart = -1; curLen = 0;
+        }
+      }
+
+      const times = [];
+      if (bestStart !== -1 && bestLen > 0){
+        for (let i=bestStart;i<bestStart+bestLen;i++) times.push(lines[i]);
+      } else {
+        // fallback: all time-only lines
+        lines.forEach(l => { if (isTimeOnly(l)) times.push(l); });
+      }
+
+      // Destination candidates: lines with letters, not header-ish, not time-only
+      const dests = [];
+      lines.forEach(l => {
+        if (isTimeOnly(l)) return;
+        if (isHeaderish(l)) return;
+        const c = cleanDots(l);
+        if (!c) return;
+        if (!/[A-Za-z]/.test(c)) return;
+        // ignore obvious non-stop fragments
+        if (/^\d+$/.test(c)) return;
+        if (/^TRIP:/i.test(c)) return;
+        if (/^ETM:/i.test(c)) return;
+        if (/^Take Vehicle/i.test(c)) return;
+        if (/^at \d{2}:\d{2}/i.test(c)) return;
+
+        dests.push(c);
+      });
+
+      // Often the duty contains general lines (e.g. "Rock Ferry Depot" repeated) before the timetable blocks.
+      // We'll prefer pairing from the *end* if that gives a better match (timetable usually near end).
+      const tryZip = (t, d) => {
+        const n = Math.min(t.length, d.length);
+        const out = [];
+        for (let i=0;i<n;i++){
+          out.push({ destination: d[i], time: t[i] });
+        }
+        return out;
+      };
+
+      // Choose the best alignment
+      if (times.length && dests.length){
+        if (dests.length === times.length){
+          return tryZip(times, dests);
+        }
+        // If dests longer, take last N dests (timetable tends to be later)
+        if (dests.length > times.length){
+          return tryZip(times, dests.slice(dests.length - times.length));
+        }
+        // If times longer, take last N times
+        if (times.length > dests.length){
+          return tryZip(times.slice(times.length - dests.length), dests);
+        }
+      }
+      return [];
+    }
+
     function toDutyRecord(d){
       // Normalize common field names from different extractors
       const dutyNum =
@@ -1209,7 +1356,28 @@
         dutyKV.appendChild(kv("Meal", duty.meal_break));
       }
 
-      dutyModalBody.textContent = duty?.raw_text?.trim() || "No duty text available in duties.json for this duty.";
+      // Build timetable rows: destination + time on same row
+      const raw = (duty?.raw_text || "").trim();
+      const rows = parseTimetableRows(raw);
+
+      dutyTable.innerHTML = "";
+      if (rows.length){
+        rows.forEach(r => {
+          const rowEl = document.createElement("div");
+          rowEl.className = "duty-row";
+          rowEl.innerHTML = `<div class="duty-dest">${escapeHtml(r.destination)}</div><div class="duty-time">${escapeHtml(r.time)}</div>`;
+          dutyTable.appendChild(rowEl);
+        });
+        rawToggle.style.display = "inline";
+      } else {
+        dutyTable.innerHTML = `<div class="mini">No structured timetable found — showing raw duty text.</div>`;
+        rawToggle.style.display = "none";
+        dutyModalBody.style.display = "block";
+      }
+
+      dutyModalBody.textContent = raw || "No duty text available in duties.json for this duty.";
+      dutyModalBody.style.display = "none"; // default hidden (toggle shows it)
+      rawToggle.textContent = "Show raw";
     }
 
     function closeDutyModal(){
@@ -1226,6 +1394,15 @@
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && dutyModal?.classList.contains("show")) closeDutyModal();
     });
+
+
+    // Raw toggle
+    rawToggle?.addEventListener("click", () => {
+      const showing = dutyModalBody.style.display !== "none";
+      dutyModalBody.style.display = showing ? "none" : "block";
+      rawToggle.textContent = showing ? "Show raw" : "Hide raw";
+    });
+
 
     dutyCopyBtn?.addEventListener("click", async () => {
       try{
