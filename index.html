@@ -1145,12 +1145,36 @@
 
     // ============================
     // DUTY SEARCH
+    // Supports multiple duties.json shapes + field names
     // ============================
     let DUTIES = [];
     let DUTY_INDEX = [];
 
     function normalizeDutyNumber(s){
       return String(s ?? "").trim().replace(/[^\d]/g, "");
+    }
+
+    function toDutyRecord(d){
+      // Normalize common field names from different extractors
+      const dutyNum =
+        d.duty_number ?? d.dutyNumber ?? d.duty ?? d.number ?? d.id ?? "";
+
+      const rawText =
+        d.raw_text ?? d.text ?? d.content ?? d.body ?? d.full_text ?? "";
+
+      return {
+        ...d,
+        duty_number: String(dutyNum),
+        raw_text: String(rawText || ""),
+        day: d.day ?? d.dayType ?? d.day_type ?? "",
+        depot: d.depot ?? "",
+        commencing: d.commencing ?? d.start ?? d.start_time ?? "",
+        sign_on: d.sign_on ?? d.signOn ?? d.signon ?? "",
+        sign_off: d.sign_off ?? d.signOff ?? d.signoff ?? "",
+        pay_time: d.pay_time ?? d.pay ?? "",
+        meal_break: d.meal_break ?? d.meal ?? "",
+        source_pdf: d.source_pdf ?? d.source ?? d.file ?? ""
+      };
     }
 
     function kv(label, value){
@@ -1161,45 +1185,51 @@
     }
 
     function openDutyModal(duty){
+      if (!dutyModal || !dutyModalBody) return;
+
       dutyModal.classList.add("show");
       dutyModal.setAttribute("aria-hidden", "false");
 
-      const num = duty?.duty_number ?? "Duty";
+      const num = duty?.duty_number || "—";
       dutyModalTitle.textContent = `Duty ${num}`;
 
       const meta = [];
       if (duty?.day) meta.push(duty.day);
-      if (duty?.commencing) meta.push(`Commencing ${duty.commencing}`);
       if (duty?.depot) meta.push(duty.depot);
+      if (duty?.commencing) meta.push(`Commencing ${duty.commencing}`);
       if (duty?.source_pdf) meta.push(duty.source_pdf);
       dutyModalMeta.textContent = meta.join(" • ");
 
       dutyKV.innerHTML = "";
-      dutyKV.appendChild(kv("Sign on", duty.sign_on));
-      dutyKV.appendChild(kv("Sign off", duty.sign_off));
-      dutyKV.appendChild(kv("Pay", duty.pay_time));
-      dutyKV.appendChild(kv("Meal", duty.meal_break));
+      const hasKV = !!(duty.sign_on || duty.sign_off || duty.pay_time || duty.meal_break);
+      if (hasKV){
+        dutyKV.appendChild(kv("Sign on", duty.sign_on));
+        dutyKV.appendChild(kv("Sign off", duty.sign_off));
+        dutyKV.appendChild(kv("Pay", duty.pay_time));
+        dutyKV.appendChild(kv("Meal", duty.meal_break));
+      }
 
-      dutyModalBody.textContent = duty?.raw_text || "No duty text available.";
+      dutyModalBody.textContent = duty?.raw_text?.trim() || "No duty text available in duties.json for this duty.";
     }
 
     function closeDutyModal(){
+      if (!dutyModal) return;
       dutyModal.classList.remove("show");
       dutyModal.setAttribute("aria-hidden", "true");
     }
 
-    dutyCloseBtn.addEventListener("click", closeDutyModal);
-    dutyModal.addEventListener("click", (e) => {
+    dutyCloseBtn?.addEventListener("click", closeDutyModal);
+    dutyModal?.addEventListener("click", (e) => {
       const t = e.target;
       if (t && t.dataset && t.dataset.close === "true") closeDutyModal();
     });
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && dutyModal.classList.contains("show")) closeDutyModal();
+      if (e.key === "Escape" && dutyModal?.classList.contains("show")) closeDutyModal();
     });
 
-    dutyCopyBtn.addEventListener("click", async () => {
+    dutyCopyBtn?.addEventListener("click", async () => {
       try{
-        const text = `Duty ${dutyModalTitle.textContent}\n${dutyModalMeta.textContent}\n\n${dutyModalBody.textContent}`;
+        const text = `${dutyModalTitle.textContent}\n${dutyModalMeta.textContent}\n\n${dutyModalBody.textContent}`;
         await navigator.clipboard.writeText(text);
         dutyCopyBtn.textContent = "Copied!";
         setTimeout(() => (dutyCopyBtn.textContent = "Copy"), 900);
@@ -1209,7 +1239,8 @@
       }
     });
 
-    dutyClearBtn.addEventListener("click", () => {
+    dutyClearBtn?.addEventListener("click", () => {
+      if (!dutyInputEl) return;
       dutyInputEl.value = "";
       renderDutyResults([]);
       dutyInputEl.focus();
@@ -1217,10 +1248,12 @@
 
     function makePreview(duty){
       const t = (duty.raw_text || "").replace(/\s+/g, " ").trim();
-      return t.slice(0, 120);
+      return t.slice(0, 140);
     }
 
     function renderDutyResults(matches){
+      if (!dutyResultsEl) return;
+
       if (!matches.length){
         dutyResultsEl.innerHTML = `<div class="mini">Type a duty number above to search.</div>`;
         return;
@@ -1230,6 +1263,9 @@
       matches.slice(0, 20).forEach(d => {
         const row = document.createElement("div");
         row.className = "result";
+        row.tabIndex = 0;
+        row.setAttribute("role","button");
+        row.setAttribute("aria-label", `Open duty ${d.duty_number}`);
 
         const left = document.createElement("div");
         left.className = "result-left";
@@ -1250,7 +1286,18 @@
         btn.className = "result-btn";
         btn.type = "button";
         btn.textContent = "Open";
-        btn.addEventListener("click", () => openDutyModal(d));
+        btn.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          openDutyModal(d);
+        });
+
+        row.addEventListener("click", () => openDutyModal(d));
+        row.addEventListener("keydown", (ev) => {
+          if (ev.key === "Enter" || ev.key === " ") {
+            ev.preventDefault();
+            openDutyModal(d);
+          }
+        });
 
         row.appendChild(left);
         row.appendChild(btn);
@@ -1268,6 +1315,7 @@
     }
 
     function wireDutySearch(){
+      if (!dutyInputEl) return;
       dutyInputEl.addEventListener("input", () => {
         const matches = searchDuties(dutyInputEl.value);
         renderDutyResults(matches);
@@ -1279,26 +1327,36 @@
         dutyStatusEl.textContent = "loading…";
         const res = await fetch("duties.json", { cache: "no-store" });
         if (!res.ok) throw new Error("duties.json not found");
+
         const data = await res.json();
-        const duties = Array.isArray(data?.duties) ? data.duties : [];
-        DUTIES = duties;
+
+        const dutiesRaw =
+          Array.isArray(data) ? data :
+          Array.isArray(data?.duties) ? data.duties :
+          Array.isArray(data?.items) ? data.items :
+          [];
+
+        DUTIES = dutiesRaw.map(toDutyRecord).filter(d => normalizeDutyNumber(d.duty_number).length > 0);
+
         DUTY_INDEX = DUTIES.map((d, i) => ({
           i,
-          raw: String(d.duty_number || ""),
-          norm: normalizeDutyNumber(d.duty_number || "")
-        })).filter(x => x.norm.length > 0);
+          raw: d.duty_number,
+          norm: normalizeDutyNumber(d.duty_number)
+        }));
 
         dutyStatusEl.textContent = `${DUTIES.length} duties`;
         renderDutyResults([]);
         wireDutySearch();
-      }catch{
+      }catch(err){
         dutyStatusEl.textContent = "not loaded";
-        dutyResultsEl.innerHTML = `
-          <div class="mini">
-            <strong>Couldn’t load duties.json.</strong><br/>
-            Keep <code>index.html</code> and <code>duties.json</code> in the same folder, then open using a local server (VS Code Live Server works great).
-          </div>
-        `;
+        if (dutyResultsEl){
+          dutyResultsEl.innerHTML = `
+            <div class="mini">
+              <strong>Couldn’t load duties.json.</strong><br/>
+              Ensure <code>index.html</code> and <code>duties.json</code> are in the same GitHub Pages folder.
+            </div>
+          `;
+        }
       }
     }
 
