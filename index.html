@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Late Shift Checklist</title>
+  <title>Late Shift Dashboard</title>
 
   <style>
     :root{
@@ -284,6 +284,14 @@
     }
 
     /* ===== Quick links icons ===== */
+    .icon-sub{
+      font-size:12px;
+      color: var(--muted);
+      font-weight:600;
+      margin-left:auto;
+      white-space:nowrap;
+    }
+
     .quick-links{
       display:flex;
       gap:10px;
@@ -322,12 +330,6 @@
       font-weight:800;
       letter-spacing:.2px;
       color: var(--text);
-    }
-    .icon-sub{
-      font-size:12px;
-      color: var(--muted);
-      font-weight:600;
-      margin-left:auto;
     }
 
     /* Simple electric-blue Google badge */
@@ -388,6 +390,105 @@
       font-weight:800;
       font-size:13px;
     }
+
+    /* ===== Duty Search ===== */
+    #dutyResults{ display:grid; gap:10px; }
+    .result{
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.04);
+      border-radius:16px;
+      padding:12px;
+      display:flex;
+      gap:12px;
+      align-items:flex-start;
+      justify-content:space-between;
+    }
+    .result:hover{
+      border-color: rgba(0,183,255,.35);
+      background: rgba(255,255,255,.055);
+    }
+    .result-left{ display:flex; flex-direction:column; gap:4px; min-width:0; }
+    .result-title{ font-weight:900; letter-spacing:.2px; }
+    .result-sub{
+      color: var(--muted);
+      font-size:12px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      max-width: 100%;
+    }
+    .result-btn{
+      flex:0 0 auto;
+      padding:9px 12px;
+      border-radius:14px;
+      font-weight:800;
+      font-size:13px;
+    }
+
+    /* ===== Modal ===== */
+    .modal{
+      position:fixed;
+      inset:0;
+      display:none;
+      z-index:999;
+    }
+    .modal.show{ display:block; }
+    .modal-backdrop{
+      position:absolute;
+      inset:0;
+      background: rgba(0,0,0,.55);
+      backdrop-filter: blur(6px);
+    }
+    .modal-panel{
+      position:relative;
+      width:min(900px, calc(100% - 28px));
+      margin: 20px auto;
+      border-radius: 18px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.07);
+      box-shadow: 0 30px 70px rgba(0,0,0,.55);
+      backdrop-filter: blur(16px);
+      overflow:hidden;
+    }
+    .modal-header{
+      padding:14px 16px;
+      border-bottom:1px solid rgba(255,255,255,.12);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .modal-title{ font-weight:900; letter-spacing:.2px; }
+    .modal-sub{ color: var(--muted); font-size: 12px; margin-top: 4px; }
+    .modal-actions{ display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; }
+    .modal-body{ padding:16px; max-height: calc(100vh - 140px); overflow:auto; }
+    .duty-pre{
+      margin:0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 12.5px;
+      color: var(--text);
+      line-height: 1.45;
+    }
+    .duty-kv{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px;
+      margin-bottom:12px;
+    }
+    .kv{
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.04);
+      border-radius:14px;
+      padding:10px 12px;
+      font-size:12px;
+      color: var(--muted);
+    }
+    .kv strong{ color: var(--text); font-weight:900; }
+    @media (max-width: 700px){
+      .duty-kv{ grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 
@@ -430,7 +531,7 @@
         </div>
       </section>
 
-      <!-- RIGHT: OTHER BITS (NOT sticky) -->
+      <!-- RIGHT: OTHER BITS -->
       <section class="panel">
         <div class="panel-inner">
 
@@ -469,7 +570,20 @@
             </div>
           </div>
 
-          <!-- Motivational Quotes -->
+          <!-- Duty Search -->
+          <div class="card" id="dutySearchCard">
+            <h2>Duty Search <span class="icon-sub" id="dutyStatus">loading…</span></h2>
+            <div class="hint">Type a duty number (loads from <code>duties.json</code> in this folder)</div>
+
+            <div class="row two">
+              <input id="dutySearchInput" placeholder="Search duty number (e.g. 2001 or 001)" inputmode="numeric" />
+              <button id="dutyClearBtn" type="button">Clear</button>
+            </div>
+
+            <div id="dutyResults" style="margin-top:10px;"></div>
+          </div>
+
+          <!-- Motivation -->
           <div class="card">
             <h2>Motivation <span class="icon-sub" id="quoteCounter">—</span></h2>
             <div class="hint">Quick boost for the shift (saved)</div>
@@ -514,9 +628,30 @@
     </div>
   </div>
 
+  <!-- Duty Modal -->
+  <div class="modal" id="dutyModal" aria-hidden="true">
+    <div class="modal-backdrop" data-close="true"></div>
+    <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="dutyModalTitle">
+      <div class="modal-header">
+        <div>
+          <div class="modal-title" id="dutyModalTitle">Duty</div>
+          <div class="modal-sub" id="dutyModalMeta"></div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="dutyCopyBtn">Copy</button>
+          <button type="button" id="dutyCloseBtn" class="danger">Close</button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div class="duty-kv" id="dutyKV"></div>
+        <pre class="duty-pre" id="dutyModalBody"></pre>
+      </div>
+    </div>
+  </div>
+
   <script>
     // ----------------------------
-    // CHECKLIST ITEMS (Original full list)
+    // CHECKLIST ITEMS
     // ----------------------------
     const ITEMS = [
       { type: "header", title: "Start of shift", hint: "Traffic / AVL / adjustments" },
@@ -595,6 +730,20 @@
     const quoteCounterEl = document.getElementById("quoteCounter");
     const newQuoteBtn = document.getElementById("newQuoteBtn");
     const autoQuoteToggle = document.getElementById("autoQuoteToggle");
+
+    // Duty search elements
+    const dutyStatusEl = document.getElementById("dutyStatus");
+    const dutyInputEl = document.getElementById("dutySearchInput");
+    const dutyResultsEl = document.getElementById("dutyResults");
+    const dutyClearBtn = document.getElementById("dutyClearBtn");
+
+    const dutyModal = document.getElementById("dutyModal");
+    const dutyCloseBtn = document.getElementById("dutyCloseBtn");
+    const dutyCopyBtn = document.getElementById("dutyCopyBtn");
+    const dutyModalTitle = document.getElementById("dutyModalTitle");
+    const dutyModalMeta = document.getElementById("dutyModalMeta");
+    const dutyModalBody = document.getElementById("dutyModalBody");
+    const dutyKV = document.getElementById("dutyKV");
 
     // ----------------------------
     // DATE + CLOCK
@@ -867,7 +1016,7 @@
     }
 
     let quoteTimer = null;
-    const QUOTE_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
+    const QUOTE_INTERVAL_MS = 30 * 60 * 1000;
 
     function setAutoQuotes(enabled){
       const st = loadQuoteState();
@@ -886,7 +1035,6 @@
       const st = loadQuoteState();
       autoQuoteToggle.checked = !!st.auto;
 
-      // If first time, pick a random quote; otherwise keep last shown
       if (typeof st.idx !== "number") {
         const r = Math.floor(Math.random() * QUOTES.length);
         setQuote(r);
@@ -974,12 +1122,12 @@
     clearBtn.addEventListener("click", () => {
       localStorage.removeItem(STORAGE_CHECKS);
       localStorage.removeItem(STORAGE_FORMS);
-      // Keep quote state by default (nice), but you can clear it too if you want:
-      // localStorage.removeItem(STORAGE_QUOTES);
-
+      // Quotes kept by default
       renderChecklist();
       buildStaffBusRows();
       hydrateForms();
+      dutyInputEl.value = "";
+      renderDutyResults([]);
     });
 
     markAllBtn.addEventListener("click", () => {
@@ -995,6 +1143,165 @@
       renderChecklist();
     });
 
+    // ============================
+    // DUTY SEARCH
+    // ============================
+    let DUTIES = [];
+    let DUTY_INDEX = [];
+
+    function normalizeDutyNumber(s){
+      return String(s ?? "").trim().replace(/[^\d]/g, "");
+    }
+
+    function kv(label, value){
+      const el = document.createElement("div");
+      el.className = "kv";
+      el.innerHTML = `<strong>${label}:</strong> ${value || "—"}`;
+      return el;
+    }
+
+    function openDutyModal(duty){
+      dutyModal.classList.add("show");
+      dutyModal.setAttribute("aria-hidden", "false");
+
+      const num = duty?.duty_number ?? "Duty";
+      dutyModalTitle.textContent = `Duty ${num}`;
+
+      const meta = [];
+      if (duty?.day) meta.push(duty.day);
+      if (duty?.commencing) meta.push(`Commencing ${duty.commencing}`);
+      if (duty?.depot) meta.push(duty.depot);
+      if (duty?.source_pdf) meta.push(duty.source_pdf);
+      dutyModalMeta.textContent = meta.join(" • ");
+
+      dutyKV.innerHTML = "";
+      dutyKV.appendChild(kv("Sign on", duty.sign_on));
+      dutyKV.appendChild(kv("Sign off", duty.sign_off));
+      dutyKV.appendChild(kv("Pay", duty.pay_time));
+      dutyKV.appendChild(kv("Meal", duty.meal_break));
+
+      dutyModalBody.textContent = duty?.raw_text || "No duty text available.";
+    }
+
+    function closeDutyModal(){
+      dutyModal.classList.remove("show");
+      dutyModal.setAttribute("aria-hidden", "true");
+    }
+
+    dutyCloseBtn.addEventListener("click", closeDutyModal);
+    dutyModal.addEventListener("click", (e) => {
+      const t = e.target;
+      if (t && t.dataset && t.dataset.close === "true") closeDutyModal();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && dutyModal.classList.contains("show")) closeDutyModal();
+    });
+
+    dutyCopyBtn.addEventListener("click", async () => {
+      try{
+        const text = `Duty ${dutyModalTitle.textContent}\n${dutyModalMeta.textContent}\n\n${dutyModalBody.textContent}`;
+        await navigator.clipboard.writeText(text);
+        dutyCopyBtn.textContent = "Copied!";
+        setTimeout(() => (dutyCopyBtn.textContent = "Copy"), 900);
+      }catch{
+        dutyCopyBtn.textContent = "Copy failed";
+        setTimeout(() => (dutyCopyBtn.textContent = "Copy"), 900);
+      }
+    });
+
+    dutyClearBtn.addEventListener("click", () => {
+      dutyInputEl.value = "";
+      renderDutyResults([]);
+      dutyInputEl.focus();
+    });
+
+    function makePreview(duty){
+      const t = (duty.raw_text || "").replace(/\s+/g, " ").trim();
+      return t.slice(0, 120);
+    }
+
+    function renderDutyResults(matches){
+      if (!matches.length){
+        dutyResultsEl.innerHTML = `<div class="mini">Type a duty number above to search.</div>`;
+        return;
+      }
+
+      dutyResultsEl.innerHTML = "";
+      matches.slice(0, 20).forEach(d => {
+        const row = document.createElement("div");
+        row.className = "result";
+
+        const left = document.createElement("div");
+        left.className = "result-left";
+
+        const subParts = [];
+        if (d.day) subParts.push(d.day);
+        if (d.depot) subParts.push(d.depot);
+        if (d.sign_on && d.sign_off) subParts.push(`${d.sign_on}–${d.sign_off}`);
+        const sub = subParts.join(" • ");
+        const preview = makePreview(d);
+
+        left.innerHTML = `
+          <div class="result-title">Duty ${d.duty_number}</div>
+          <div class="result-sub">${sub}${sub && preview ? " • " : ""}${preview}</div>
+        `;
+
+        const btn = document.createElement("button");
+        btn.className = "result-btn";
+        btn.type = "button";
+        btn.textContent = "Open";
+        btn.addEventListener("click", () => openDutyModal(d));
+
+        row.appendChild(left);
+        row.appendChild(btn);
+        dutyResultsEl.appendChild(row);
+      });
+    }
+
+    function searchDuties(query){
+      const q = normalizeDutyNumber(query);
+      if (!q) return [];
+
+      const starts = DUTY_INDEX.filter(x => x.norm.startsWith(q));
+      const contains = DUTY_INDEX.filter(x => !x.norm.startsWith(q) && x.norm.includes(q));
+      return [...starts, ...contains].slice(0, 60).map(x => DUTIES[x.i]);
+    }
+
+    function wireDutySearch(){
+      dutyInputEl.addEventListener("input", () => {
+        const matches = searchDuties(dutyInputEl.value);
+        renderDutyResults(matches);
+      });
+    }
+
+    async function loadDutiesJSON(){
+      try{
+        dutyStatusEl.textContent = "loading…";
+        const res = await fetch("duties.json", { cache: "no-store" });
+        if (!res.ok) throw new Error("duties.json not found");
+        const data = await res.json();
+        const duties = Array.isArray(data?.duties) ? data.duties : [];
+        DUTIES = duties;
+        DUTY_INDEX = DUTIES.map((d, i) => ({
+          i,
+          raw: String(d.duty_number || ""),
+          norm: normalizeDutyNumber(d.duty_number || "")
+        })).filter(x => x.norm.length > 0);
+
+        dutyStatusEl.textContent = `${DUTIES.length} duties`;
+        renderDutyResults([]);
+        wireDutySearch();
+      }catch{
+        dutyStatusEl.textContent = "not loaded";
+        dutyResultsEl.innerHTML = `
+          <div class="mini">
+            <strong>Couldn’t load duties.json.</strong><br/>
+            Keep <code>index.html</code> and <code>duties.json</code> in the same folder, then open using a local server (VS Code Live Server works great).
+          </div>
+        `;
+      }
+    }
+
     // ----------------------------
     // BOOT
     // ----------------------------
@@ -1008,6 +1315,8 @@
 
     initQuotes();
     renderChecklist();
+
+    loadDutiesJSON();
   </script>
 </body>
 </html>
