@@ -601,6 +601,86 @@
       .duty-split{ grid-template-columns: 1fr; }
       .split-list{ max-height: 220px; }
     }
+  
+    /* ===== Duty board renderer ===== */
+    .board-grid{
+      display:grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap:12px;
+      margin-bottom:12px;
+    }
+    @media (max-width: 980px){
+      .board-grid{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 680px){
+      .board-grid{ grid-template-columns: 1fr; }
+    }
+    .board-card{
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.04);
+      border-radius:16px;
+      padding:12px;
+      min-width:0;
+    }
+    .board-head{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      padding-bottom:10px;
+      border-bottom:1px solid rgba(255,255,255,.10);
+      margin-bottom:10px;
+    }
+    .board-title{
+      font-weight:900;
+      letter-spacing:.2px;
+      font-size:13px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .board-sub{
+      color: var(--muted);
+      font-size:12px;
+      line-height:1.2;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .board-rows{ display:grid; gap:8px; }
+    .board-row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      padding:10px 12px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.03);
+      min-width:0;
+    }
+    .board-dest{
+      font-weight:800;
+      min-width:0;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+    .board-time{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-weight:900;
+      flex:0 0 auto;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid rgba(0,183,255,.25);
+      background: rgba(0,183,255,.06);
+    }
+    .board-note{
+      color: var(--muted);
+      font-size:12px;
+      margin-top:8px;
+    }
+
   </style>
 </head>
 
@@ -757,18 +837,7 @@
       <div class="modal-body">
         <div class="duty-kv" id="dutyKV"></div>
         <div class="raw-toggle" id="rawToggle">Show raw</div>
-        <div class="duty-split" id="dutySplit">
-          <div class="split-card">
-            <div class="split-title">Destinations <span class="split-count" id="destCount">0</span></div>
-            <div class="split-list" id="destList"></div>
-          </div>
-          <div class="split-card">
-            <div class="split-title">Times <span class="split-count" id="timeCount">0</span></div>
-            <div class="split-list" id="timeList"></div>
-          </div>
-        </div>
-        <div class="mini" id="pairHint">—</div>
-        <div class="duty-table" id="dutyTable"></div>
+        <div class="board-grid" id="boardGrid"></div>
         <pre class="duty-pre" id="dutyModalBody" style="display:none;"></pre>
       </div>
     </div>
@@ -868,13 +937,7 @@
     const dutyModalTitle = document.getElementById("dutyModalTitle");
     const dutyModalMeta = document.getElementById("dutyModalMeta");
     const dutyModalBody = document.getElementById("dutyModalBody");
-    const dutyTable = document.getElementById("dutyTable");
-    const dutySplit = document.getElementById("dutySplit");
-    const destList = document.getElementById("destList");
-    const timeList = document.getElementById("timeList");
-    const destCount = document.getElementById("destCount");
-    const timeCount = document.getElementById("timeCount");
-    const pairHint = document.getElementById("pairHint");
+    const boardGrid = document.getElementById("boardGrid");
     const rawToggle = document.getElementById("rawToggle");
     const dutyKV = document.getElementById("dutyKV");
 
@@ -1301,59 +1364,82 @@
     // 1) collect a block of time-only lines (HH:MM)
     // 2) collect destination lines that look like stops/locations (letters + not headers)
     // 3) if counts line up, zip them together
-    function parseDutyParts(raw){
-      const lines = String(raw || "")
-        .split(/\r?\n/)
-        .map(l => l.replace(/\s+/g, " ").trim())
-        .filter(Boolean);
+    function parseDutyBoard(raw){
+      const text = String(raw || "");
+      const lines = text.split(/\r?\n/);
 
-      const isTimeOnly = (l) => /^\d{2}:\d{2}$/.test(l);
-      const isHeaderish = (l) => {
-        const up = l.toUpperCase();
-        return (
-          up.includes("SIGN ON") || up.includes("SIGN OFF") || up.includes("PAY TIME") ||
-          up.includes("MEAL BREAK") || up.includes("COMMENCING") || up.includes("POWERED BY") ||
-          up.includes("SCHEDULE:") || up.startsWith("DEST:") || up.startsWith("SER:") ||
-          up.startsWith("BUS NO") || up.startsWith("PRE-TRIP") || up.includes("OPTIBUS")
-        );
+      const segments = [];
+      let current = null;
+
+      const startSegment = (title, sub) => {
+        current = { title: title || "Duty block", sub: sub || "", dests: [], times: [] };
+        segments.push(current);
       };
-      const cleanDots = (l) => l.replace(/\.{2,}/g, " ").replace(/\s+/g, " ").trim();
 
-      // All times
-      const times = [];
-      lines.forEach(l => { if (isTimeOnly(l)) times.push(l); });
+      // Helper patterns
+      const timeToken = /\b\d{2}:\d{2}\b/g;
+      const dottedLine = /^(.+?)\s*\.{10,}\s*$/; // destination with dotted leaders
 
-      // All destination-ish lines
-      const dests = [];
-      lines.forEach(l => {
-        if (isTimeOnly(l)) return;
-        if (isHeaderish(l)) return;
-        const c = cleanDots(l);
-        if (!c) return;
-        if (!/[A-Za-z]/.test(c)) return;
-        if (/^\d+$/.test(c)) return;
-        if (/^TRIP:/i.test(c)) return;
-        if (/^ETM:/i.test(c)) return;
-        if (/^Take Vehicle/i.test(c)) return;
-        if (/^at \d{2}:\d{2}/i.test(c)) return;
-        dests.push(c);
-      });
+      // Build segments based on DEST:/SER:/BUS NO/MEAL BREAK boundaries
+      for (let i=0;i<lines.length;i++){
+        const rawLine = lines[i] || "";
+        const line = rawLine.replace(/\s+/g," ").trim();
+        if (!line) continue;
 
-      // Paired (best-effort)
-      const paired = [];
-      if (times.length && dests.length){
-        if (times.length === dests.length){
-          for (let i=0;i<times.length;i++) paired.push({ destination: dests[i], time: times[i] });
-        } else if (dests.length > times.length) {
-          const d2 = dests.slice(dests.length - times.length);
-          for (let i=0;i<times.length;i++) paired.push({ destination: d2[i], time: times[i] });
-        } else {
-          const t2 = times.slice(times.length - dests.length);
-          for (let i=0;i<dests.length;i++) paired.push({ destination: dests[i], time: t2[i] });
+        // Segment starters
+        if (/^DEST:/i.test(line)){
+          const title = line.replace(/^DEST:\s*/i,"").trim();
+          startSegment(`DEST: ${title}`, "");
+          continue;
+        }
+        if (/^MEAL BREAK/i.test(line)){
+          startSegment("MEAL BREAK", line.replace(/\s+/g," ").trim());
+          continue;
+        }
+        if (/^BUS NO/i.test(line)){
+          // keep BUS NO as sub in current or start a block
+          if (!current) startSegment("BUS", "");
+          current.sub = current.sub ? `${current.sub} • ${line}` : line;
+          continue;
+        }
+        if (/^SER:/i.test(line)){
+          if (!current) startSegment("SERVICE", "");
+          current.sub = current.sub ? `${current.sub} • ${line}` : line;
+          continue;
+        }
+
+        // Ensure at least one segment exists (first block)
+        if (!current) startSegment("Block", "");
+
+        // Collect times in any line
+        const times = line.match(timeToken);
+        if (times) times.forEach(t => current.times.push(t));
+
+        // Collect dotted destinations
+        const m = line.match(dottedLine);
+        if (m){
+          const dest = m[1].replace(/\s{2,}/g," ").trim();
+          if (dest && /[A-Za-z]/.test(dest)) current.dests.push(dest);
         }
       }
 
-      return { times, dests, paired };
+      // Pair within each segment: zip dests with last N times
+      const out = segments.map(seg => {
+        const d = seg.dests;
+        const t = seg.times;
+        let pairs = [];
+        if (d.length){
+          const slice = t.length >= d.length ? t.slice(t.length - d.length) : t;
+          const n = Math.min(d.length, slice.length);
+          for (let i=0;i<n;i++){
+            pairs.push({ destination: d[i], time: slice[i] });
+          }
+        }
+        return { title: seg.title, sub: seg.sub, pairs, destCount: d.length, timeCount: t.length };
+      });
+
+      // Remove empty segments (no pairs and no useful sub)
+      return out.filter(s => (s.pairs && s.pairs.length) || (s.sub && s.sub.length));
     }
 
     function toDutyRecord(d){
@@ -1411,45 +1497,53 @@
         dutyKV.appendChild(kv("Meal", duty.meal_break));
       }
 
-      // Extract ALL destinations and ALL times (and also show a paired view if possible)
       const raw = (duty?.raw_text || "").trim();
-      const parts = parseDutyParts(raw);
+      dutyModalBody.textContent = raw || "No duty text available in duties.json for this duty.";
 
-      // Destinations list
-      destList.innerHTML = "";
-      parts.dests.forEach((d) => {
-        const el = document.createElement("div");
-        el.className = "split-item";
-        el.innerHTML = `<div class="dest">${escapeHtml(d)}</div>`;
-        destList.appendChild(el);
-      });
-      destCount.textContent = `${parts.dests.length}`;
+      // Render board view (destination + time rows, in blocks)
+      boardGrid.innerHTML = "";
+      const blocks = parseDutyBoard(raw);
 
-      // Times list
-      timeList.innerHTML = "";
-      parts.times.forEach((t) => {
-        const el = document.createElement("div");
-        el.className = "split-item";
-        el.innerHTML = `<div class="mono">${escapeHtml(t)}</div>`;
-        timeList.appendChild(el);
-      });
-      timeCount.textContent = `${parts.times.length}`;
+      if (blocks.length){
+        blocks.forEach(b => {
+          const card = document.createElement("div");
+          card.className = "board-card";
 
-      // Paired view (best-effort) below
-      dutyTable.innerHTML = "";
-      if (parts.paired.length){
-        pairHint.textContent = "Paired view (best-effort):";
-        parts.paired.forEach(r => {
-          const rowEl = document.createElement("div");
-          rowEl.className = "duty-row";
-          rowEl.innerHTML = `<div class="duty-dest">${escapeHtml(r.destination)}</div><div class="duty-time">${escapeHtml(r.time)}</div>`;
-          dutyTable.appendChild(rowEl);
+          const head = document.createElement("div");
+          head.className = "board-head";
+          head.innerHTML = `
+            <div class="board-title">
+              <span>${escapeHtml(b.title)}</span>
+              <span class="icon-sub">${b.pairs.length || 0} rows</span>
+            </div>
+            <div class="board-sub">${escapeHtml(b.sub || `Dest ${b.destCount} • Times ${b.timeCount}`)}</div>
+          `;
+
+          const rows = document.createElement("div");
+          rows.className = "board-rows";
+
+          if (b.pairs && b.pairs.length){
+            b.pairs.forEach(r => {
+              const row = document.createElement("div");
+              row.className = "board-row";
+              row.innerHTML = `<div class="board-dest">${escapeHtml(r.destination)}</div><div class="board-time">${escapeHtml(r.time)}</div>`;
+              rows.appendChild(row);
+            });
+          } else {
+            const note = document.createElement("div");
+            note.className = "board-note";
+            note.textContent = "No destination/time rows detected in this block.";
+            rows.appendChild(note);
+          }
+
+          card.appendChild(head);
+          card.appendChild(rows);
+          boardGrid.appendChild(card);
         });
       } else {
-        pairHint.textContent = "No paired view available for this duty (showing all destinations and all times above).";
+        boardGrid.innerHTML = `<div class="mini">Couldn’t build the board view for this duty — click “Show raw” to view the extracted text.</div>`;
       }
 
-      dutyModalBody.textContent = raw || "No duty text available in duties.json for this duty.";
       dutyModalBody.style.display = "none";
       rawToggle.style.display = "inline";
       rawToggle.textContent = "Show raw";
